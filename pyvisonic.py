@@ -95,7 +95,7 @@ class ProtocolBase(asyncio.Protocol):
     def PowerLinkTimeoutExpired(self):
         """We timed out, try to restore the connection."""
         
-        log.debug("Powerlink Timer Expired")
+        log.debug("[PowerLinkTimeoutExpired] Powerlink Timer Expired")
         
         # restart the timer
         try:
@@ -111,7 +111,7 @@ class ProtocolBase(asyncio.Protocol):
     def connection_made(self, transport):
         """Just logging for now."""
         self.transport = transport
-        log.debug('connected')
+        log.debug('[connection_made] connected')
         
         # Define 60 seconds timer and start it for PowerLink communication
         try:
@@ -124,7 +124,7 @@ class ProtocolBase(asyncio.Protocol):
 
         self.ReceiveLastPacket = datetime.now()
         self.QueueCommand(VMSG_INIT, "Initializing PowerMax/Master PowerLink Connection", 0x00)
-#       sleep(0.5)
+        sleep(0.5)
         # Send the download command, this should initiate the communication
         # Only skip it, if we force standard mode
         if not ForceStandardMode:
@@ -132,7 +132,7 @@ class ProtocolBase(asyncio.Protocol):
 
     def data_received(self, data): 
        """Add incoming data to ReceiveData."""
-       log.debug('received data: %s', repr(data))
+       log.debug('[data_received] received data: %s', repr(data))
        for databyte in data:
            self.handle_received_byte(databyte)
 
@@ -143,13 +143,13 @@ class ProtocolBase(asyncio.Protocol):
             # Check for timeout
             dt = datetime.now() - self.lastpreambletime
             if ((dt.total_seconds * 1000 + dt.microseconds / 1000.0) > 3000):
-                log.debug("TIMEOUT ERROR: ", dt.total_seconds * 1000 + dt.microseconds / 1000.0)
+                log.debug("[handle_received_byte] TIMEOUT ERROR: ", dt.total_seconds * 1000 + dt.microseconds / 1000.0)
                 self.ReceiveData = bytearray()
                 self.receiveheaderfound = False
         
             if len(self.ReceiveData) >= 192:
                 # packets cannot be longer than \xC0 / 192 bytes
-                log.debug("Packet too long!")
+                log.debug("[handle_received_byte] Packet too long!")
                 self.ReceiveData = bytearray()
                 self.receiveheaderfound = False
         else:
@@ -183,20 +183,20 @@ class ProtocolBase(asyncio.Protocol):
         if packet[-1:] != b'\x0A':
             return False
         if packet[-2:-1] == self.calculate_crc(packet[1:-2]):
-            log.debug("VALID PACKET!")
+#            log.debug("[valid_packet] VALID PACKET!")
             return True
-        log.debug("Not valid packet, CRC failed, too bad")
+        log.debug("[valid_packet] Not valid packet, CRC failed, too bad")
         return False
 
     def calculate_crc(self, msg: bytearray):
-        log.debug("Calculating for: %s", repr(msg))
+        log.debug("[calculate_crc] Calculating for: %s", repr(msg))
         checksum = 0
         for char in msg[0:len(msg)]:
             checksum += char
         checksum = checksum % 255
         if checksum % 0xFF != 0:
             checksum = checksum ^ 0xFF
-        log.debug("Calculated CRC is: %s", repr(bytearray([checksum])))
+        log.debug("[calculate_crc] Calculated CRC is: %s", repr(bytearray([checksum])))
         return bytearray([checksum])
 
     def ProcessQueue(self, *bResend):
@@ -215,11 +215,11 @@ class ProtocolBase(asyncio.Protocol):
                         bAddToQueue = False
                 
                 if bAddToQueue:
-                    SendLastCommand.ReceiveCnt = SendLastCommand.ReceiveCntFixed
-                    SendQueue.put(SendLastCommand, 0)
-                    log.debug("Resending Request '{0}' {1}. Queue Count={2}".format(SendLastCommand.Msg, hex(SendLastCommand.Command), self.SendQueue.qsize()))
+                    self.SendLastCommand.ReceiveCnt = self.SendLastCommand.ReceiveCntFixed
+                    SendQueue.put(self.SendLastCommand, 0)
+                    log.debug("[ProcessQueue] Resending Request '{0}' {1}. Queue Count={2}".format(self.SendLastCommand.Msg, hex(self.SendLastCommand.Command), self.SendQueue.qsize()))
                 else:
-                    log.debug("ERROR: Resend is requested, but the last request is NULL?")
+                    log.debug("[ProcessQueue] ERROR: Resend is requested, but the last request is NULL?")
                     
         if self.SendQueue.empty():
             self.SendLastCommand = Null
@@ -259,20 +259,20 @@ class ProtocolBase(asyncio.Protocol):
                             elif aStr[1] == "DisarmArmCode":
                                 iCode = DisarmArmCode
                             else:
-                                log.debug("ERROR: Unknown Code defined ({0})".format(aStr[1]))
+                                log.debug("[ProcessQueue] ERROR: Unknown Code defined ({0})".format(aStr[1]))
                     
                             if iCode != 0:
                                 self.SendLastCommand.command[int(aStr[2])] = iCode >> 8 and 0xFF
                                 self.SendLastCommand.command[int(aStr[2]) + 1] = iCode and 0xFF
                             else:
-                                log.debug("ERROR: The pincode is zero ({0}".format(hex(self.SendLastCommand.command)))
+                                log.debug("[ProcessQueue] ERROR: The pincode is zero ({0}".format(hex(self.SendLastCommand.command)))
                         else:
-                            log.debug("ERROR: Invalid Option '{0}', Expected: 3, Received: {1}".format(self.SendLastCommand.options, aStr.count))
+                            log.debug("[ProcessQueue] ERROR: Invalid Option '{0}', Expected: 3, Received: {1}".format(self.SendLastCommand.options, aStr.count))
                         
                     else:
-                        log.debug("ERROR: Unknown Option '{0}'".format(self.SendLastCommand.options))
+                        log.debug("[ProcessQueue] ERROR: Unknown Option '{0}'".format(self.SendLastCommand.options))
                 else:
-                    log.debug("ERROR: Invalid Option '{0}'".format(self.SendLastCommand.options))
+                    log.debug("[ProcessQueue] ERROR: Invalid Option '{0}'".format(self.SendLastCommand.options))
             
             # Now send it to the PowerMax/Master
             self.SendCommand(self.SendLastCommand.command)
@@ -293,7 +293,7 @@ class ProtocolBase(asyncio.Protocol):
         options = kwargs.get('options', None)
         
         # Log some usefull information in debug mode
-        log.debug("Queued Command ({0})".format(msg))
+        log.debug("[QueueCommand] Queued Command ({0})".format(msg))
                         
         # Download commands, can have answers split across multiple message
         # Determine the number of messages we should get
@@ -306,7 +306,8 @@ class ProtocolBase(asyncio.Protocol):
         ReceiveCntFixed = ReceiveCnt
                                                 
         # Add it to the queue
-        self.SendQueue.put(VisonicQueueEntry(msg = msg, command = packet, receive = response, options = options, receivecount = ReceiveCnt, receivecountfixed = ReceiveCntFixed))
+        self.SendQueue.put(VisonicQueueEntry(msg = msg, command = packet, receive = response, options = options, 
+                           receivecount = ReceiveCnt, receivecountfixed = ReceiveCntFixed))
 #        self.SendQueue.put(cEntry)
 
         # Kick off queue handling if required
@@ -328,14 +329,14 @@ class ProtocolBase(asyncio.Protocol):
     def SendCommand(self, packet: bytearray):
         """Encode and put packet string onto write buffer."""
         
-        log.debug('input data: %s', repr(packet))
+        log.debug('[SendCommand] input data: %s', repr(packet))
         # First add preamble (0x0D), then the packet, then crc and postamble (0x0A)
         sData = b'\x0D'
         sData += packet
         sData += self.calculate_crc(packet)
         sData += b'\x0A'
 
-        log.debug('writing data: %s', repr(sData))
+        log.debug('[SendCommand] Writing data: %s', repr(sData))
         self.transport.write(sData)
 
     def connection_lost(self, exc):
@@ -392,7 +393,7 @@ class PacketHandling(ProtocolBase):
 
     def handle_packet(self, packet):
         """Handle one raw incoming packet."""
-        log.debug("Parsing complete valid packet: %s", repr(packet))
+        log.debug("[handle_packet] Parsing complete valid packet: %s", repr(packet))
 
         if packet[1:2] == b'\x02': # ACK
             self.handle_msgtype02()
@@ -404,7 +405,7 @@ class PacketHandling(ProtocolBase):
         elif packet[1:2] == b'\x0B': # Stopped
             self.ACK = True
             self.Response = True
-            log.debug("Stopped")
+            log.debug("[handle_packet] Stopped")
         elif packet[1:2] == b'\x25': # Download retry
             self.ACK = True
             self.Response = True
@@ -432,7 +433,7 @@ class PacketHandling(ProtocolBase):
             self.Response = True
             self.handle_msgtypeAB()
         else:
-            log.debug("Unknown/Unhandled packet type {0}".format(packet[1:2]))
+            log.debug("[handle_packet] Unknown/Unhandled packet type {0}".format(packet[1:2]))
         # clear our buffer again so we can receive a new packet.
         self.ReceiveData = b''
 
@@ -444,7 +445,7 @@ class PacketHandling(ProtocolBase):
         return bin(bits)
 
     def handle_msgtype02(self): # ACK
-        log.debug("Acknowledgement")
+        log.debug("[handle_msgtype02] Acknowledgement")
           
         # Check if the last message is Download Exit, if this is the case, process the settings
         if self.sendlastcommand == True:
@@ -487,12 +488,12 @@ class PacketHandling(ProtocolBase):
     def handle_msgtype06(self): 
         """ MsgType=06 - Time out
         Timeout message from the PM, most likely we are/were in download mode """
-        log.debug("Timeout Received")
+        log.debug("[handle_msgtype06] Timeout Received")
         
         send_message(VMSG_DL_EXIT)
 
     def handle_msgtype08(self):
-          log.debug("Access Denied")
+          log.debug("[handle_msgtype08] Access Denied")
           
           # If LastMsgType And &HF0 = &HA0 Then
           #   Wrong pin  enroll, eventlog, arm, bypass
@@ -511,7 +512,7 @@ class PacketHandling(ProtocolBase):
             
         iDelay = self.ReceiveData[4]
               
-        log.debug("Download Retry, have to wait {0} seconds".format(iDelay))
+        log.debug("[handle_msgtype25] Download Retry, have to wait {0} seconds".format(iDelay))
                 
         # Restart the queue timer
         self.bQueueDelay = True
@@ -527,7 +528,7 @@ class PacketHandling(ProtocolBase):
         Message send after a VMSG_START. We will store the information in an internal array/collection """
 
         if self.ReceiveData.Count != 11:
-            log.debug("ERROR: MSGTYPE=0x33 Expected=11, Received={0}".format(self.ReceiveData.count()))
+            log.debug("[handle_msgtype33] ERROR: MSGTYPE=0x33 Expected=11, Received={0}".format(self.ReceiveData.count()))
             return
                 
         # Format is: <MsgType> <index> <page> <data 8x bytes>
@@ -549,7 +550,7 @@ class PacketHandling(ProtocolBase):
         
         PowerMaster = (PanelType >= 7)
           
-        log.debug("PanelType={0}, Model={1}".format(DisplayPanelType(), DisplayPanelModel()))
+        log.debug("[handle_msgtype3C] PanelType={0}, Model={1}".format(DisplayPanelType(), DisplayPanelModel()))
             
         # We got a first response, now we can continue enrollment the PowerMax/Master PowerLink
         PowerLinkEnrolled()
@@ -567,7 +568,7 @@ class PacketHandling(ProtocolBase):
                 
         # Check length and data-length
         if iLength != (self.ReceiveData.count() - 4):
-            log.debug("ERROR: Type=3F has an invalid length, Received: {0}, Expected: {1}".format(len(self.ReceiveData)-4, iLength))
+            log.debug("[handle_msgtype3F] ERROR: Type=3F has an invalid length, Received: {0}, Expected: {1}".format(len(self.ReceiveData)-4, iLength))
                           
         # Write to memory map structure, but remove the first 4 bytes (3F/index/page/length) from the data
 #FIXME
@@ -586,7 +587,7 @@ class PacketHandling(ProtocolBase):
               
         # Check for the first entry, it only contains the number of events
         if self.ReceiveData[2] == 0x01:
-            log.debug("Eventlog received")
+            log.debug("[handle_msgtypeA0] Eventlog received")
                       
             self.SendLastCommand.ReceiveCnt = self.ReceiveData[1] - 1
             self.SendLastCommand.ReceiveCntFixed = self.ReceiveData[1] - 1
@@ -635,17 +636,17 @@ class PacketHandling(ProtocolBase):
                 
     def handle_msgtypeA5(self): # Status Message
         packet = self.ReceiveData
-        log.debug("Parsing A5 packet")
+        log.debug("[handle_msgtypeA5] Parsing A5 packet")
         if packet[3:4] == b'\x01': # Log event print
-            log.debug("Log Event Print")
+            log.debug("[handle_msgtypeA5] Log Event Print")
         elif packet[3:4] == b'\x02': # Status message zones
-            log.debug("Status and Battery Message")
-            log.debug("Status Zones 01-08: %s ", displayzonebin(packet[4:5]))
-            log.debug("Status Zones 09-16: %s ", displayzonebin(packet[5:6]))
-            log.debug("Status Zones 17-24: %s ", displayzonebin(packet[6:7]))
-            log.debug("Status Zones 25-30: %s ", displayzonebin(packet[7:8]))
-            log.debug("Battery Zones 01-08: %s ", displayzonebin(packet[8:9]))
-            log.debug("Battery Zones 09-16: %s ", displayzonebin(packet[9:10]))
+            log.debug("[handle_msgtypeA5] Status and Battery Message")
+            log.debug("[handle_msgtypeA5] Status Zones 01-08: %s ", displayzonebin(packet[4:5]))
+            log.debug("[handle_msgtypeA5] Status Zones 09-16: %s ", displayzonebin(packet[5:6]))
+            log.debug("[handle_msgtypeA5] Status Zones 17-24: %s ", displayzonebin(packet[6:7]))
+            log.debug("[handle_msgtypeA5] Status Zones 25-30: %s ", displayzonebin(packet[7:8]))
+            log.debug("[handle_msgtypeA5] Battery Zones 01-08: %s ", displayzonebin(packet[8:9]))
+            log.debug("[handle_msgtypeA5] Battery Zones 09-16: %s ", displayzonebin(packet[9:10]))
             log.debug("Battery Zones 17-24: %s ", displayzonebin(packet[10:11]))
             log.debug("Battery Zones 25-30: %s ", displayzonebin(packet[11:12]))
         elif packet[3:4] == b'\x03': # Tamper Event
@@ -722,9 +723,9 @@ class PacketHandling(ProtocolBase):
             else:
                 slog = "Unknown {0})".format(repr(packet[4:5]))
                 sarm = "Disarmed"
-            log.debug("log: {0}, arm: {1}".format(slog, sarm))
+            log.debug("[handle_msgtypeA5] log: {0}, arm: {1}".format(slog, sarm))
 #FIXME
-            log.debug("Zone Event {0}".format(sLog))
+            log.debug("[handle_msgtypeA5] Zone Event {0}".format(sLog))
       
 #            iDeviceId = Devices.Find(Instance, "Panel", InterfaceId, IIf($bPowerMaster, "Visonic PowerMaster", "Visonic PowerMax"))
 #            if iDeviceId:
@@ -732,15 +733,15 @@ class PacketHandling(ProtocolBase):
 #                Devices.ValueUpdate(iDeviceId, 2, sLog)
                                           
             if (self.ReceiveData[4] and 1):
-                log.debug("Bit 0 set, Ready")
+                log.debug("[handle_msgtypeA5] Bit 0 set, Ready")
             if (self.ReceiveData[4] and 2):
-                log.debug("Bit 1 set, Alert in Memory")
+                log.debug("[handle_msgtypeA5] Bit 1 set, Alert in Memory")
             if (self.ReceiveData[4] and 4):
-                log.debug("Bit 2 set, Trouble!")
+                log.debug("[handle_msgtypeA5] Bit 2 set, Trouble!")
             if (self.ReceiveData[4] and 8):
-                log.debug("Bit 3 set, Bypass")
+                log.debug("[handle_msgtypeA5] Bit 3 set, Bypass")
             if (self.ReceiveData[4] and 16):
-                log.debug("Bit 4 set, Last 10 seconds of entry/exit")
+                log.debug("[handle_msgtypeA5] Bit 4 set, Last 10 seconds of entry/exit")
             if (self.ReceiveData[4] and 32):
                 if self.ReceiveData[6] == 0x00: # None
                     sLog = "No Zone Event"
@@ -787,13 +788,13 @@ class PacketHandling(ProtocolBase):
                 else:
                     sLog = "Unknown ({0})".format(hex(self.ReceiveData[6]))
                 
-                log.debug("Bit 5 set, Zone Event")
-                log.debug("Zone: {0}, {1}".format(self.ReceiveData[5], sLog))
+                log.debug("[handle_msgtypeA5] Bit 5 set, Zone Event")
+                log.debug("[handle_msgtypeA5] Zone: {0}, {1}".format(self.ReceiveData[5], sLog))
                 
             if (self.ReceiveData[4] and 64):
-                log.debug("Bit 6 set, Status Changed")
+                log.debug("[handle_msgtypeA5] Bit 6 set, Status Changed")
             if (self.ReceiveData[4] and 128): 
-                log.debug("Bit 7 set, Alarm Event")
+                log.debug("[handle_msgtypeA5] Bit 7 set, Alarm Event")
                 
             # Trigger a zone event will only work for PowerMax and not for PowerMaster
             if not self.PowerMaster:
@@ -810,11 +811,11 @@ class PacketHandling(ProtocolBase):
 #                            EnableTripTimer("Z" & Format$($sReceiveData[5], "00"))
 #                        Endif
 #                    else:
-                        log.write("ERROR: Zone information for zone '" & self.ReceiveData[5] & "' is unknown, possible the Plugin couldn't retrieve the information from the panel?")
+                        log.write("[handle_msgtypeA5] ERROR: Zone information for zone '" & self.ReceiveData[5] & "' is unknown, possible the Plugin couldn't retrieve the information from the panel?")
 
 #FIXME until here
         elif packet[3:4] == b'\x06': # Status message enrolled/bypassed
-            log.debug("Enrollment and Bypass Message")
+            log.debug("[handle_msgtypeA5] Enrollment and Bypass Message")
             log.debug("Enrolled Zones 01-08: " & displayzonebin(packet[4:5]))
             log.debug("Enrolled Zones 09-16: " & displayzonebin(packet[5:6]))
             log.debug("Enrolled Zones 17-24: " & displayzonebin(packet[6:7]))
@@ -824,11 +825,11 @@ class PacketHandling(ProtocolBase):
             log.debug("Bypassed Zones 17-24: " & displayzonebin(packet[10:11]))
             log.debug("Bypassed Zones 25-30: " & displayzonebin(packet[11:12]))
         else:
-            log.debug("Unknown A5 Event: %s", repr(packet[3:4]))
+            log.debug("[handle_msgtypeA5] Unknown A5 Event: %s", repr(packet[3:4]))
 
     def handle_msgtypeA7(self):
         """ MsgType=A7 - Panel Status Change """
-        log.debug("Panel Status Change")
+        log.debug("[handle_msgtypeA7] Panel Status Change")
           
         log.debug("Zone/User: " & DisplayZoneUser(packet[3:4]))
         log.debug("Log Event: " & DisplayLogEvent(packet[4:5]))
@@ -837,7 +838,7 @@ class PacketHandling(ProtocolBase):
         """ MsgType=AB - PowerLink message """
         
         if self.ReceiveData[2] == b'\x03': # PowerLink keep-alive
-            log.debug("PowerLink Keep-Alive ({0})".format(ByteToString(self.ReceiveData[6:4])))
+            log.debug("[handle_msgtypeAB] PowerLink Keep-Alive ({0})".format(ByteToString(self.ReceiveData[6:4])))
               
             DownloadMode = False
               
@@ -881,11 +882,12 @@ class PacketHandling(ProtocolBase):
         # Remove anything else from the queue, we need to restart
         self.ClearQueue()
         # Send the request, the pin will be added when the command is send
-        self.QueueCommand(VMSG_ENROLL, "Auto-Enroll of the PowerMax/Master", 0, options = "PIN:DownloadCode:4")
+#        self.QueueCommand(VMSG_ENROLL, "Auto-Enroll of the PowerMax/Master", 0, options = "PIN:DownloadCode:4")
+        self.QueueCommand(VMSG_ENROLL, "Auto-Enroll of the PowerMax/Master", 0)
         
         # We are doing an auto-enrollment, most likely the download failed. Lets restart the download stage.
         if self.DownloadMode:
-            log.debug("Resetting download mode to 'Off'")
+            log.debug("[SendMsg_ENROLL] Resetting download mode to 'Off'")
             self.DownloadMode = False
                       
         self.SendMsg_DL_START()
@@ -897,7 +899,7 @@ class PacketHandling(ProtocolBase):
             self.DownloadMode = True
             self.QueueCommand(VMSG_DL_START, "Start Download Mode", 0x3C, options = "PIN:DownloadCode:3")
         else:
-            log.debug("Already in Download Mode?")
+            log.debug("[SendMsg_DL_START] Already in Download Mode?")
 
             
 class CommandSerialization(ProtocolBase):
@@ -1256,3 +1258,99 @@ def DisplayPanelModel(self):
     }
 
     return switcher.get(self.PanelType*0x100 + self.ModelType, "Unknown ({0})".format(hex(self.PanelType) * 0x100 + self.ModelType))
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Display Zone/User
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def DisplayZoneUser(self):
+    switcher = {
+    0x0: "System",
+    0x1: "Zone 1",
+    0x2: "Zone 2",
+    0x3: "Zone 3",
+    0x4: "Zone 4",
+    0x5: "Zone 5",
+    0x6: "Zone 6",
+    0x7: "Zone 7",
+    0x8: "Zone 8",
+    0x9: "Zone 9",
+    0xA: "Zone 10"
+    0xB: "Zone 11",
+    0xC: "Zone 12",
+    0xD: "Zone 13",
+    0xE: "Zone 14",
+    0xF: "Zone 15",
+    0x10: "Zone 16",
+    0x11: "Zone 17",
+    0x12: "Zone 18",
+    0x13: "Zone 19",
+    0x14: "Zone 20",
+    0x15: "Zone 21",
+    0x16: "Zone 22",
+    0x17: "Zone 23",
+    0x18: "Zone 24",
+    0x19: "Zone 25",
+    0x1A: "Zone 26",
+    0x1B: "Zone 27",
+    0x1C: "Zone 28",
+    0x1D: "Zone 29",
+    0x1E: "Zone 30",
+    0x1F: "Keyfob1",
+    0x20: "Keyfob2",
+    0x21: "Keyfob3",
+    0x22: "Keyfob4",
+    0x23: "Keyfob5",
+    0x24: "Keyfob6",
+    0x25: "Keyfob7",
+    0x26: "Keyfob8",
+    0x27: "User1",
+    0x28: "User2",
+    0x29: "User3",
+    0x2A: "User4",
+    0x2B: "User5",
+    0x2C: "User6",
+    0x2D: "User7",
+    0x2E: "User8",
+    0x2F: "Wireless Commander1",
+    0x30: "Wireless Commander2",
+    0x31: "Wireless Commander3",
+    0x32: "Wireless Commander4",
+    0x33: "Wireless Commander5",
+    0x34: "Wireless Commander6",
+    0x35: "Wireless Commander7",
+    0x36: "Wireless Commander8",
+    0x37: "Wireless Siren1",
+    0x38: "Wireless Siren2",
+    0x39: "2Way Wireless Keypad1",
+    0x3A: "2Way Wireless Keypad2",
+    0x3B: "2Way Wireless Keypad3",
+    0x3C: "2Way Wireless Keypad4",
+    0x3D: "X10-1",
+    0x3E: "X10-2",
+    0x3F: "X10-3",
+    0x40: "X10-4",
+    0x41: "X10-5",
+    0x42: "X10-6",
+    0x43: "X10-7",
+    0x44: "X10-8",
+    0x45: "X10-9",
+    0x46: "X10-10",
+    0x47: "X10-11",
+    0x48: "X10-12",
+    0x49: "X10-13",
+    0x4A: "X10-14",
+    0x4B: "X10-15",
+    0x4C: "PGM",
+    0x4D: "GSM",
+    0x4E: "Powerlink",
+    0x4F: "Proxy Tag1",
+    0x50: "Proxy Tag2",
+    0x51: "Proxy Tag3",
+    0x52: "Proxy Tag4",
+    0x53: "Proxy Tag5",
+    0x54: "Proxy Tag6",
+    0x55: "Proxy Tag7",
+    0x56: "Proxy Tag8",
+    }
+
+    return switcher.get(self.PanelType, "Unknown")

@@ -10,6 +10,7 @@ setup(name='pyvisonic',
       install_requires=[
       'asyncio',
       'pyserial==3.2.1',
-      'pyserial-asyncio'
+      'pyserial-asyncio',
+      'python-dateutil'
       ],
       zip_safe=True)
