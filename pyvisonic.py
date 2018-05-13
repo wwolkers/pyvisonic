@@ -217,7 +217,7 @@ class ProtocolBase(asyncio.Protocol):
                 
                 if bAddToQueue:
                     self.SendLastCommand.ReceiveCnt = self.SendLastCommand.ReceiveCntFixed
-                    SendQueue.put(self.SendLastCommand, 0)
+                    self.SendQueue.put(self.SendLastCommand, 0)
                     log.debug("[ProcessQueue] Resending Request '{0}' {1}. Queue Count={2}".format(self.SendLastCommand.Msg, hex(self.SendLastCommand.Command), self.SendQueue.qsize()))
                 else:
                     log.debug("[ProcessQueue] ERROR: Resend is requested, but the last request is NULL?")
@@ -336,6 +336,10 @@ class ProtocolBase(asyncio.Protocol):
         """Encode and put packet string onto write buffer."""
         
         log.debug('[SendCommand] input data: %s', repr(packet))
+        
+        # Lets update the timestamp
+        self.ReceiveLastPacket = datetime.now()
+        
         # First add preamble (0x0D), then the packet, then crc and postamble (0x0A)
         sData = b'\x0D'
         sData += packet
@@ -452,8 +456,8 @@ class PacketHandling(ProtocolBase):
     def displayzonebin(self, bits):
         """ Display Zones in reverse binary format
           Zones are from e.g. 1-8, but it is stored in 87654321 order in binary format """
-          
-        return bin(bits)
+#        log.debug("bits: %s", format(int(bits[0]), '08b'))
+        return format(int(bits[0]), '08b')
 
     def handle_msgtype02(self): # ACK
         log.debug("[handle_msgtype02] Acknowledgement")
@@ -652,24 +656,24 @@ class PacketHandling(ProtocolBase):
             log.debug("[handle_msgtypeA5] Log Event Print")
         elif packet[3:4] == b'\x02': # Status message zones
             log.debug("[handle_msgtypeA5] Status and Battery Message")
-            log.debug("[handle_msgtypeA5] Status Zones 01-08: %s ", displayzonebin(packet[4:5]))
-            log.debug("[handle_msgtypeA5] Status Zones 09-16: %s ", displayzonebin(packet[5:6]))
-            log.debug("[handle_msgtypeA5] Status Zones 17-24: %s ", displayzonebin(packet[6:7]))
-            log.debug("[handle_msgtypeA5] Status Zones 25-30: %s ", displayzonebin(packet[7:8]))
-            log.debug("[handle_msgtypeA5] Battery Zones 01-08: %s ", displayzonebin(packet[8:9]))
-            log.debug("[handle_msgtypeA5] Battery Zones 09-16: %s ", displayzonebin(packet[9:10]))
-            log.debug("Battery Zones 17-24: %s ", displayzonebin(packet[10:11]))
-            log.debug("Battery Zones 25-30: %s ", displayzonebin(packet[11:12]))
+            log.debug("[handle_msgtypeA5] Status Zones 01-08: %s ", self.displayzonebin(packet[4:5]))
+            log.debug("[handle_msgtypeA5] Status Zones 09-16: %s ", self.displayzonebin(packet[5:6]))
+            log.debug("[handle_msgtypeA5] Status Zones 17-24: %s ", self.displayzonebin(packet[6:7]))
+            log.debug("[handle_msgtypeA5] Status Zones 25-30: %s ", self.displayzonebin(packet[7:8]))
+            log.debug("[handle_msgtypeA5] Battery Zones 01-08: %s ", self.displayzonebin(packet[8:9]))
+            log.debug("[handle_msgtypeA5] Battery Zones 09-16: %s ", self.displayzonebin(packet[9:10]))
+            log.debug("[handle_msgtypeA5] Battery Zones 17-24: %s ", self.displayzonebin(packet[10:11]))
+            log.debug("[handle_msgtypeA5] Battery Zones 25-30: %s ", self.displayzonebin(packet[11:12]))
         elif packet[3:4] == b'\x03': # Tamper Event
-            log.debug("Tamper event")
-            log.debug("Status Zones 01-08: %s ", displayzonebin(packet[4:5]))
-            log.debug("Status Zones 09-16: %s ", displayzonebin(packet[5:6]))
-            log.debug("Status Zones 17-24: %s ", displayzonebin(packet[6:7]))
-            log.debug("Status Zones 25-30: %s ", displayzonebin(packet[7:8]))
-            log.debug("Battery Zones 01-08: %s ", displayzonebin(packet[8:9]))
-            log.debug("Battery Zones 09-16: %s ", displayzonebin(packet[9:10]))
-            log.debug("Battery Zones 17-24: %s ", displayzonebin(packet[10:11]))
-            log.debug("Battery Zones 25-30: %s ", displayzonebin(packet[11:12]))
+            log.debug("[handle_msgtypeA5] Tamper event")
+            log.debug("[handle_msgtypeA5] Status Zones 01-08: %s ", self.displayzonebin(packet[4:5]))
+            log.debug("[handle_msgtypeA5] Status Zones 09-16: %s ", self.displayzonebin(packet[5:6]))
+            log.debug("[handle_msgtypeA5] Status Zones 17-24: %s ", self.displayzonebin(packet[6:7]))
+            log.debug("[handle_msgtypeA5] Status Zones 25-30: %s ", self.displayzonebin(packet[7:8]))
+            log.debug("[handle_msgtypeA5] Battery Zones 01-08: %s ", self.displayzonebin(packet[8:9]))
+            log.debug("[handle_msgtypeA5] Battery Zones 09-16: %s ", self.displayzonebin(packet[9:10]))
+            log.debug("[handle_msgtypeA5] Battery Zones 17-24: %s ", self.displayzonebin(packet[10:11]))
+            log.debug("[handle_msgtypeA5] Battery Zones 25-30: %s ", self.displayzonebin(packet[11:12]))
         elif packet[3:4] == b'\x04': # Zone event
             if packet[4:5] == b'\x00':
                 slog = "Disarmed"
@@ -806,11 +810,11 @@ class PacketHandling(ProtocolBase):
                 log.debug("[handle_msgtypeA5] Bit 6 set, Status Changed")
             if (self.ReceiveData[4] and 128): 
                 log.debug("[handle_msgtypeA5] Bit 7 set, Alarm Event")
-                
+#FIXME                
             # Trigger a zone event will only work for PowerMax and not for PowerMaster
-            if not self.PowerMaster:
-                #If $sReceiveData[6] = 3 Or If $sReceiveData[6] = 4 Or If $sReceiveData[6] = 5 Then
-                if self.ReceiveData[6] == 5:
+#            if not self.PowerMaster:
+
+#                if self.ReceiveData[6] == 5:
                 
 #                    if self.Config and if self.Config.Exist("zoneinfo") and if self.Config["zoneinfo"].Exist(self.ReceiveData[5]) and if self.Config["zoneinfo"][self.ReceiveData[5]]["sensortype"]:
 #FIXME                        
@@ -822,19 +826,19 @@ class PacketHandling(ProtocolBase):
 #                            EnableTripTimer("Z" & Format$($sReceiveData[5], "00"))
 #                        Endif
 #                    else:
-                        log.write("[handle_msgtypeA5] ERROR: Zone information for zone '" & self.ReceiveData[5] & "' is unknown, possible the Plugin couldn't retrieve the information from the panel?")
+#                        log.write("[handle_msgtypeA5] ERROR: Zone information for zone '" & self.ReceiveData[5] & "' is unknown, possible the Plugin couldn't retrieve the information from the panel?")
 
 #FIXME until here
         elif packet[3:4] == b'\x06': # Status message enrolled/bypassed
             log.debug("[handle_msgtypeA5] Enrollment and Bypass Message")
-            log.debug("Enrolled Zones 01-08: " & displayzonebin(packet[4:5]))
-            log.debug("Enrolled Zones 09-16: " & displayzonebin(packet[5:6]))
-            log.debug("Enrolled Zones 17-24: " & displayzonebin(packet[6:7]))
-            log.debug("Enrolled Zones 25-30: " & displayzonebin(packet[7:8]))
-            log.debug("Bypassed Zones 01-08: " & displayzonebin(packet[8:9]))
-            log.debug("Bypassed Zones 09-16: " & displayzonebin(packet[9:10]))
-            log.debug("Bypassed Zones 17-24: " & displayzonebin(packet[10:11]))
-            log.debug("Bypassed Zones 25-30: " & displayzonebin(packet[11:12]))
+            log.debug("Enrolled Zones 01-08: %s", self.displayzonebin(packet[4:5]))
+            log.debug("Enrolled Zones 09-16: %s", self.displayzonebin(packet[5:6]))
+            log.debug("Enrolled Zones 17-24: %s", self.displayzonebin(packet[6:7]))
+            log.debug("Enrolled Zones 25-30: %s", self.displayzonebin(packet[7:8]))
+            log.debug("Bypassed Zones 01-08: %s", self.displayzonebin(packet[8:9]))
+            log.debug("Bypassed Zones 09-16: %s", self.displayzonebin(packet[9:10]))
+            log.debug("Bypassed Zones 17-24: %s", self.displayzonebin(packet[10:11]))
+            log.debug("Bypassed Zones 25-30: %s", self.displayzonebin(packet[11:12]))
         else:
             log.debug("[handle_msgtypeA5] Unknown A5 Event: %s", repr(packet[3:4]))
 
@@ -842,8 +846,8 @@ class PacketHandling(ProtocolBase):
         """ MsgType=A7 - Panel Status Change """
         log.debug("[handle_msgtypeA7] Panel Status Change")
           
-        log.debug("Zone/User: " & DisplayZoneUser(packet[3:4]))
-        log.debug("Log Event: " & DisplayLogEvent(packet[4:5]))
+        log.debug("Zone/User: %s", DisplayZoneUser(packet[3:4]))
+        log.debug("Log Event: %s", DisplayLogEvent(packet[4:5]))
                 
     def handle_msgtypeAB(self): # PowerLink Message
         """ MsgType=AB - PowerLink message """
