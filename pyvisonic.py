@@ -33,7 +33,7 @@ from typing import Callable, List
 from serial_asyncio import create_serial_connection
 from collections import namedtuple
 
-msleep = lambda x: sleep(x/1000.0)
+#msleep = lambda x: sleep(x/1000.0)
 
 PLUGIN_VERSION = "0.0.1"
 
@@ -46,14 +46,15 @@ DownloadCode = bytearray.fromhex('56 50')
 
 PanelSettings = {
    "MotionOffDelay"      : 180,
+   "OverrideCode"        : -1,
    "PluginLanguage"      : "EN",
    "PluginDebug"         : False,
    "ForceStandard"       : False,
 #   "AutoCreate"          : True,
    "AutoSyncTime"        : True,
    "EnableRemoteArm"     : True,
-   "EnableRemoteDisArm"  : True,
-   "SensorArm"           : "auto"
+   "EnableRemoteDisArm"  : True,   # 
+   "EnableSensorBypass"  : True    # Does user allow sensor bypass / arming
 }
 
 PanelStatus = {
@@ -984,6 +985,7 @@ class PacketHandling(ProtocolBase):
     
     pmBypassOff = False         # Do we allow the user to bypass the sensors
     MyCounter = 0               # testing only
+    doneAutoEnroll = False
     
     def __init__(self, *args, packet_callback: Callable = None,
                  **kwargs) -> None:
@@ -1005,11 +1007,12 @@ class PacketHandling(ProtocolBase):
         # Used to deepcopy to see if anything has changed with the sensors
         self.pmSensorDevOld_t = {}
 
-        self.pmLang = PanelSettings["PluginLanguage"]           # INTERFACE : Get the plugin language from HA, either "EN" or "NL"
-        self.pmRemoteArm = PanelSettings["EnableRemoteArm"]     # INTERFACE : Does the user allow remote setting of the alarm
-        self.pmSensorArm = PanelSettings["SensorArm"]           # INTERFACE : Does the user allow sensor arming, "auto" "bypass" or "live"
-        self.MotionOffDelay = PanelSettings["MotionOffDelay"]   # INTERFACE : Get the motion sensor off delay time (between subsequent triggers)
+        self.pmLang = PanelSettings["PluginLanguage"]             # INTERFACE : Get the plugin language from HA, either "EN" or "NL"
+        self.pmRemoteArm = PanelSettings["EnableRemoteArm"]       # INTERFACE : Does the user allow remote setting of the alarm
+        self.pmSensorBypass = PanelSettings["EnableSensorBypass"] # INTERFACE : Does the user allow sensor bypass, True or False
+        self.MotionOffDelay = PanelSettings["MotionOffDelay"]     # INTERFACE : Get the motion sensor off delay time (between subsequent triggers)
         self.pmAutoCreate = True # What else can we do????? # PanelSettings["AutoCreate"]         # INTERFACE : Whether to automatically create devices
+        self.OverrideCode = PanelSettings["OverrideCode"]         # INTERFACE : Get the override code (must be set if forced standard and not powerlink)
         
         # Save the EPROM data when downloaded
         self.pmRawSettings = {}
@@ -1224,12 +1227,6 @@ class PacketHandling(ProtocolBase):
                 PanelStatus["BypassOff"] = self.pmBypassOff
                 
                 log.debug("[Process Settings] Alarm Settings pmBellTime {0} minutes     pmSilentPanic {1}   pmQuickArm {2}    pmBypassOff {3}  pmForcedDisarmCode {4}".format(self.pmBellTime, self.pmSilentPanic, self.pmQuickArm, self.pmBypassOff, self.pmForcedDisarmCode))
-                #if self.pmSensorArm == "auto":
-                #    self.pmSensorShowBypass = not self.pmBypassOff
-                #elif self.pmSensorArm == "bypass":
-                #    self.pmSensorShowBypass = True
-                #elif self.pmSensorArm == "live":
-                #    self.pmSensorShowBypass = False
 
                 # Process user pin codes
                 if self.pmPowerMaster:
@@ -1477,6 +1474,8 @@ class PacketHandling(ProtocolBase):
             #=================================================================================================================================
             #=================================================================================================================================
             #=================================================================================================================================
+        elif pmPanelTypeNr == None or pmPanelTypeNr == 0xFF:
+            log.debug("WARNING: Cannot process settings, we're probably connected to the panel in standard mode")        
         else:
             log.debug("WARNING: Cannot process settings, the panel is too new")        
         #luup.chdev.sync(pmPanelDev, childDevices)
@@ -1948,7 +1947,7 @@ class PacketHandling(ProtocolBase):
                 log.debug("[handle_msgtypeAB]     Got alive message while not in Powerlink mode; starting download")
                 self.Start_Download()
             else:
-                self.runMyTests()
+                self.DumpSensorsToDisplay()
         elif subType == 5: # -- phone message
             action = self.ReceiveData[4]
             if action == 1:
@@ -1968,7 +1967,7 @@ class PacketHandling(ProtocolBase):
             log.debug("[handle_msgtypeAB] PowerLink telling us what the code is for downloads, currently commented out as I'm not certain of this")
             #DownloadCode[0] = self.ReceiveData[5]
             #DownloadCode[1] = self.ReceiveData[6]
-        elif (subType == 10 and self.ReceiveData[4] == 1):
+        elif (subType == 10 and self.ReceiveData[4] == 1 and not self.doneAutoEnroll):
             log.debug("[handle_msgtypeAB] PowerLink most likely wants to auto-enroll, only doing auto enroll once")
             DownloadMode = False
             self.SendMsg_ENROLL()
@@ -1989,26 +1988,32 @@ class PacketHandling(ProtocolBase):
     def SendMsg_ENROLL(self):
         """ Auto enroll the PowerMax/Master unit """
         global DownloadMode
-        log.debug("[SendMsg_ENROLL]  download pin will be " + toString(DownloadCode))
-        # Remove anything else from the List, we need to restart
-        self.pmExpectedResponse = []
-        # Clear the list
-        self.ClearList()
-        sleep(1.0)
-        # Send the request, the pin will be added when the command is send
-        #self.SendCommand("MSG_RESTORE") #,  options = [4, DownloadCode])
-        self.SendCommand("MSG_ENROLL",  options = [4, DownloadCode])
-        # We are doing an auto-enrollment, most likely the download failed. Lets restart the download stage.
-        if DownloadMode:
-            log.debug("[SendMsg_ENROLL] Resetting download mode to 'Off' in order to retrigger it")
-            DownloadMode = False
-        self.Start_Download()
-          
+        if not self.doneAutoEnroll:
+            log.debug("[SendMsg_ENROLL]  download pin will be " + toString(DownloadCode))
+            self.doneAutoEnroll = True
+            # Remove anything else from the List, we need to restart
+            self.pmExpectedResponse = []
+            # Clear the list
+            self.ClearList()
+            sleep(1.0)
+            # Send the request, the pin will be added when the command is send
+            #self.SendCommand("MSG_RESTORE") #,  options = [4, DownloadCode])
+            self.SendCommand("MSG_ENROLL",  options = [4, DownloadCode])
+            # We are doing an auto-enrollment, most likely the download failed. Lets restart the download stage.
+            if DownloadMode:
+                log.debug("[SendMsg_ENROLL] Resetting download mode to 'Off' in order to retrigger it")
+                DownloadMode = False
+            self.Start_Download()
+        else:
+            log.warning("Warning: Trying to re enroll and it is only allowed once at the start")
+         
     # pmGetPin: Convert a PIN given as 4 digit string in the PIN PDU format as used in messages to powermax
-    def pmGetPin(self, pin): 
+    def pmGetPin(self, pin):
         """ Get pin and convert to bytearray """
         if pin == "" or pin == None or len(pin) != 4:
-            if self.pmPowerlinkMode:
+            if self.OverrideCode != -1:
+                pin = str(self.OverrideCode)
+            elif self.pmPowerlinkMode:
                 return True, self.pmPincode_t[0]   # if powerlink, then we downloaded the pin codes. Use the first one
             else:
                 log.warning("Warning: Valid 4 digit PIN needed and not in Powerlink mode")
@@ -2030,7 +2035,7 @@ class PacketHandling(ProtocolBase):
         makeitastring = " ".join(str(x) for x in changedSensors)
         if len(makeitastring) == 0:
             makeitastring = "No Changes"
-        log.info("****************************** Dumping Status *******************************")
+        #log.info("****************************** Dumping Status *******************************")
         log.info("Checking for changes to the sensors  " + makeitastring)
         log.info("Dumping sensors to display:")
         for key, sensor in self.pmSensorDev_t.items():
@@ -2038,15 +2043,47 @@ class PacketHandling(ProtocolBase):
         for key in PanelStatus:
             log.info("Panel Status {0:22}  {1}".format(key, PanelStatus[key]))
 
-    ##  Only called from AB I'm alive receipt to run some tests
-    def runMyTests(self):
-        self.DumpSensorsToDisplay()
-        self.MyCounter = self.MyCounter + 1
-        #if self.MyCounter == 3:
-            #log.debug("Trying to get Armed")
-            #self.GetEventLog()
-            #self.RequestArm("Armed")
-    
+class EventHandling(PacketHandling):
+    """ Event Handling """
+
+    def __init__(self, *args, event_callback: Callable = None,
+                 ignore: List[str] = None, **kwargs) -> None:
+        """Add eventhandling specific initialization."""
+        super().__init__(*args, **kwargs)
+        self.event_callback = event_callback
+        if ignore:
+            log.debug('ignoring: %s', ignore)
+            self.ignore = ignore
+        else:
+            #log.debug("In __init__")
+            self.ignore = []
+
+    def handle_event(self, event):
+        """Default handling of incoming event (print)."""
+        log.debug("In handle_event")
+        string = '{id:<32} '
+        if 'command' in event:
+            string += '{command}'
+        elif 'version' in event:
+            if 'hardware' in event:
+                string += '{hardware} {firmware} '
+            string += 'V{version} R{revision}'
+        else:
+            string += '{value}'
+            if event.get('unit'):
+                string += ' {unit}'
+
+        print(string.format(**event))
+
+    def ignore_event(self, event_id):
+        """Verify event id against list of events to ignore. """
+        log.debug("In ignore_event")
+        for ignore in self.ignore:
+            if (ignore == event_id or
+                    (ignore.endswith('*') and event_id.startswith(ignore[:-1]))):
+                return True
+        return False
+
     #===================================================================================================================================================
     #===================================================================================================================================================
     #===================================================================================================================================================
@@ -2170,170 +2207,55 @@ class PacketHandling(ProtocolBase):
             return copy.deepcopy(self.pmSensorDev_t[s]) # return a deepcopy as we don't want anything else to change it
         return None
 
-# class CommandSerialization(ProtocolBase):
-    # """Logic for ensuring asynchronous commands are send in order."""
-        
-    # def __init__(self, *args, packet_callback: Callable = None,
-                 # **kwargs) -> None:
-        # """Add packethandling specific initialization."""
-        # super().__init__(*args, **kwargs)
-        # if packet_callback:
-            # self.packet_callback = packet_callback
-        # self._command_ack = asyncio.Event(loop=self.loop)
-        # self._ready_to_send = asyncio.Lock(loop=self.loop)
-                                                                                         
-    # @asyncio.coroutine
-    # def send_command_ack(self, device_id, action):
-        # """Send command, wait for gateway to repond with acknowledgment."""
-        # # serialize commands
-        # yield from self._ready_to_send.acquire()
-        # acknowledgement = None
-        # try:
-            # self._command_ack.clear()
-            # self.send_command(device_id, action)
-            # log.debug('waiting for acknowledgement')
-            # try:
-                # yield from asyncio.wait_for(self._command_ack.wait(), TIMEOUT.seconds, loop=self.loop)
-                # log.debug('packet acknowledged')
-            # except concurrent.futures._base.TimeoutError:
-                # acknowledgement = {'ok': False, 'message': 'timeout'}
-                # log.warning('acknowledge timeout')
-            # else:
-                # acknowledgement = self._last_ack.get('ok', False)
-        # finally:
-            # # allow next command
-            # self._ready_to_send.release()
-        # return acknowledgement
-
-class EventHandling(PacketHandling):
-    """Breaks up packets into individual events with ids'.
-
-    Most packets represent a single event (light on, measured
-    temparature), but some contain multiple events (temperature and
-    humidity). This class adds logic to convert packets into individual
-    events each with their own id based on packet details (protocol,
-    switch, etc).
-    """
-
-    def __init__(self, *args, event_callback: Callable = None,
-                 ignore: List[str] = None, **kwargs) -> None:
-        """Add eventhandling specific initialization."""
-        super().__init__(*args, **kwargs)
-        self.event_callback = event_callback
-        # suppress printing of packets
-        if not kwargs.get('packet_callback'):
-            self.packet_callback = lambda x: None
-        if ignore:
-            log.debug('ignoring: %s', ignore)
-            self.ignore = ignore
-        else:
-            #log.debug("In __init__")
-            self.ignore = []
-
-    def _handle_packet(self, packet):
-        log.debug("In _handle_packet")
-        """Event specific packet handling logic.
-
-        Break packet into events and fires configured event callback or
-        nicely prints events for console.
-        """
-#        events = packet_events(packet)
-
-#        for event in events:
-#            if self.ignore_event(event['id']):
-#                log.debug('ignoring event with id: %s', event)
-#                continue
-#            log.debug('got event: %s', event)
-#            if self.event_callback:
-#                self.event_callback(event)
-#            else:
-#                self.handle_event(event)
-
-    def handle_event(self, event):
-        """Default handling of incoming event (print)."""
-        log.debug("In handle_event")
-        string = '{id:<32} '
-        if 'command' in event:
-            string += '{command}'
-        elif 'version' in event:
-            if 'hardware' in event:
-                string += '{hardware} {firmware} '
-            string += 'V{version} R{revision}'
-        else:
-            string += '{value}'
-            if event.get('unit'):
-                string += ' {unit}'
-
-        print(string.format(**event))
-
-    def handle_packet(self, packet):
-        """Apply event specific handling and pass on to packet handling."""
-#        self._handle_packet(packet)
-        #log.debug("In handle_packet")
-        super().handle_packet(packet)
-
-    def ignore_event(self, event_id):
-        """Verify event id against list of events to ignore.
-
-        >>> e = EventHandling(ignore=[
-        ...   'test1_00',
-        ...   'test2_*',
-        ... ])
-        >>> e.ignore_event('test1_00')
-        True
-        >>> e.ignore_event('test2_00')
-        True
-        >>> e.ignore_event('test3_00')
-        False
-        """
-        log.debug("In ignore_event")
-        for ignore in self.ignore:
-            if (ignore == event_id or
-                    (ignore.endswith('*') and event_id.startswith(ignore[:-1]))):
-                return True
-        return False
-
 class VisonicProtocol(EventHandling):
     """Combine preferred abstractions that form complete Rflink interface."""
+def setConfig(key, val):
+    if key in PanelSettings:
+        log.warning("Setting key {0} to value {1}".format(key, val))
+        PanelSettings[key] = val
+    else:
+        log.warning("ERROR: ************************ Cannot find key {0} in panel settings".format(key))
+    if key == "PluginDebug":
+        log.info("Setting Logger Debug to {0}".format(val))
+        if val == True:
+            level = logging.getLevelName('DEBUG')  # INFO, DEBUG
+            log.setLevel(level)
+        else:    
+            level = logging.getLevelName('INFO')  # INFO, DEBUG
+            log.setLevel(level)
 
-def create_tcpvisonic_connection(address=None, port=None, protocol=VisonicProtocol,
-                             packet_callback=None, event_callback=None,
-                             disconnect_callback=None, ignore=None, loop=None):
-    """Create Visonic manager class, returns transport coroutine."""
+def create_tcpvisonic_connection(address, port, protocol=VisonicProtocol, event_callback=None, disconnect_callback=None, loop=None):
+    """Create Visonic manager class, returns tcp transport coroutine."""
     # use default protocol if not specified
     protocol = partial(
         protocol,
         loop=loop if loop else asyncio.get_event_loop(),
-        packet_callback=packet_callback,
+#        packet_callback=packet_callback,
         event_callback=event_callback,
         disconnect_callback=disconnect_callback,
-        ignore=ignore if ignore else [],
+#        ignore=ignore if ignore else [],
     )
 
-    # setup tcp connection
-    #message = 'Hello World!'
-#    conn = loop.create_connection(lambda: EchoClientProtocol(message, loop), address, port)
     address = address
     port = port
     conn = loop.create_connection(protocol, address, port)
 
     return conn
 
-def create_visonic_connection(port=None, baud=9600, protocol=VisonicProtocol,
-                             packet_callback=None, event_callback=None,
-                             disconnect_callback=None, ignore=None, loop=None):
-    """Create Visonic manager class, returns transport coroutine."""
+def create_visonic_connection(port, baud=9600, protocol=VisonicProtocol, event_callback=None, disconnect_callback=None, loop=None):
+    """Create Visonic manager class, returns rs232 transport coroutine."""
     # use default protocol if not specified
     protocol = partial(
         protocol,
         loop=loop if loop else asyncio.get_event_loop(),
-        packet_callback=packet_callback,
+#        packet_callback=packet_callback,
         event_callback=event_callback,
         disconnect_callback=disconnect_callback,
-        ignore=ignore if ignore else [],
+#        ignore=ignore if ignore else [],
     )
 
     # setup serial connection
+    port = port
     baud = baud
     conn = create_serial_connection(loop, protocol, port, baud)
 
