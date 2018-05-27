@@ -38,8 +38,8 @@ from collections import namedtuple
 PLUGIN_VERSION = "0.0.1"
 
 MAX_CRC_ERROR = 5
-TIMEOUT = timedelta(seconds=50)
-PowerLinkTimeout = 60
+TIMEOUT = timedelta(seconds=30)
+WatchDogTimeout = 60
 MasterCode = bytearray.fromhex('56 50')
 DisarmArmCode = bytearray.fromhex('56 50')
 DownloadCode = bytearray.fromhex('56 50')
@@ -110,8 +110,8 @@ VisonicCommand = collections.namedtuple('VisonicCommand', 'data replytype waitfo
 pmSendMsg = {
    "MSG_INIT"        : VisonicCommand(bytearray.fromhex('AB 0A 00 01 00 00 00 00 00 00 00 43'), None, True,  "Initializing PowerMax/Master PowerLink Connection" ),
    "MSG_ALIVE"       : VisonicCommand(bytearray.fromhex('AB 03 00 00 00 00 00 00 00 00 00 43'), None, False, "I'm Alive Message To Panel" ),
-   "MSG_ZONENAME"    : VisonicCommand(bytearray.fromhex('A3 00 00 00 00 00 00 00 00 00 00 43'), None, False, "Requesting Zone Names" ),
-   "MSG_ZONETYPE"    : VisonicCommand(bytearray.fromhex('A6 00 00 00 00 00 00 00 00 00 00 43'), None, False, "Requesting Zone Types" ),
+   "MSG_ZONENAME"    : VisonicCommand(bytearray.fromhex('A3 00 00 00 00 00 00 00 00 00 00 43'), 0xA3, False, "Requesting Zone Names" ),
+   "MSG_ZONETYPE"    : VisonicCommand(bytearray.fromhex('A6 00 00 00 00 00 00 00 00 00 00 43'), 0xA6, False, "Requesting Zone Types" ),
    "MSG_X10NAMES"    : VisonicCommand(bytearray.fromhex('AC 00 00 00 00 00 00 00 00 00 00 43'), None, False, "Requesting X10 Names" ),
    "MSG_RESTORE"     : VisonicCommand(bytearray.fromhex('AB 06 00 00 00 00 00 00 00 00 00 43'), 0xA5, False, "Restore PowerMax/Master Connection" ),
    "MSG_ENROLL"      : VisonicCommand(bytearray.fromhex('AB 0A 00 00 99 99 00 00 00 00 00 43'), 0xAB, False, "Auto-Enroll of the PowerMax/Master" ),
@@ -175,8 +175,8 @@ pmDownloadItem_t = {
 # Message types we can receive with their length (None=unknown) and whether they need an ACK
 PanelCallBack = collections.namedtuple("PanelCallBack", 'length ackneeded variablelength' )
 pmReceiveMsg_t = {
-   0x02 : PanelCallBack( None, False, False ),  # Ack
-   0x06 : PanelCallBack( None, False, False ),  # Timeout. See the receiver function for ACK handling
+   0x02 : PanelCallBack( None, False, False ),   # Ack
+   0x06 : PanelCallBack( None, False, False ),   # Timeout. See the receiver function for ACK handling
    0x08 : PanelCallBack( None,  True, False ),   # Access Denied
    0x0B : PanelCallBack( None,  True, False ),   # Stop --> Download Complete
    0x25 : PanelCallBack(   14,  True, False ),   # 14 Download Retry  
@@ -184,11 +184,13 @@ pmReceiveMsg_t = {
    0x3C : PanelCallBack(   14,  True, False ),   # 14 Panel Info
    0x3F : PanelCallBack( None,  True,  True ),   # Download Info
    0xA0 : PanelCallBack(   15,  True, False ),   # 15 Event Log
+   0xA3 : PanelCallBack(   15,  True, False ),   # 15 Zone Names
    0xA5 : PanelCallBack(   15,  True, False ),   # 15 Status Update       Length was 15 but panel seems to send different lengths
+   0xA6 : PanelCallBack(   15,  True, False ),   # 15 Zone Types I think!!!!
    0xA7 : PanelCallBack(   15,  True, False ),   # 15 Panel Status Change
    0xAB : PanelCallBack(   15,  True, False ),   # 15 Enroll Request 0x0A  OR Ping 0x03      Length was 15 but panel seems to send different lengths
    0xB0 : PanelCallBack( None,  True, False ),
-   0xF1 : PanelCallBack( None, False, False )   # 9
+   0xF1 : PanelCallBack(    9, False, False )    # 9
 }
 
 pmReceiveMsgB0_t = {
@@ -450,7 +452,7 @@ class SensorDevice:
         self.lowbatt = kwargs.get('lowbatt', None)      # bool  if this sensor has a low battery
         self.status = kwargs.get('status', None)        # bool  status, as returned by the A5 message
         self.tamper = kwargs.get('tamper', None)        # bool  tamper, as returned by the A5 message
-        self.enrolled = kwargs.get('enrolled', None)    # bool  enrolled, as returned by the A5 message
+        self.enrolled = kwargs.get('enrolled', False)   # bool  enrolled, as returned by the A5 message
         self.triggered = kwargs.get('triggered', False) # bool  triggered, as returned by the A5 message
         self.triggertime = None                         # datetime  This is used to time out the triggered value and set it back to false
         
@@ -530,6 +532,8 @@ class ProtocolBase(asyncio.Protocol):
     pmPowerlinkMode = False
     # are we waiting for an acknowledge from the panel (do not send a message until we get it)
     pmWaitingForAckFromPanel = False
+
+    triedResendingMessage = False
     
     CommExceptionCount = 0
     
@@ -553,30 +557,34 @@ class ProtocolBase(asyncio.Protocol):
     def pmTimeFunction(self) -> datetime:
         return datetime.now()
     
-    # This is a timeout function for powerlinking. If we are in powerlink, we should get a AB 03 message every 20 to 30 seconds
+    # This is a timeout function for a watchdog. If we are in powerlink, we should get a AB 03 message every 20 to 30 seconds
     #    If we haven't got one in the timeout period then reset the send queues and state and then call a MSG_RESTORE
-    def PowerLinkTimeoutExpired(self):
+    # In standard mode, this command asks the panel for a status
+    def WatchDogTimeoutExpired(self):
         """We timed out, try to restore the connection."""
-        log.debug("[PowerLinkTimeout] ****************************** Powerlink Timer Expired ********************************")
+        log.debug("[WatchDogTimeout] ****************************** WatchDog Timer Expired ********************************")
         # Reset Send state (clear queue and reset flags)
         self.ClearList()
         self.pmWaitingForAckFromPanel = False
         self.pmExpectedResponse = []    
         # restart the timer
-        self.reset_powerlink_timeout()
-        # Send RESTORE to the panel
-        self.SendCommand("MSG_RESTORE")
+        self.reset_watchdog_timeout()
+        if self.pmPowerlinkMode:
+            # Send RESTORE to the panel
+            self.SendCommand("MSG_RESTORE") # also gives status
+        else:
+            self.SendCommand("MSG_STATUS")
 
     # This function needs to be called within the timeout to reset the timer period
-    def reset_powerlink_timeout(self):
-        global PowerLinkTimeout
-        # log.debug("[PowerLinkTimeout] Resetting Powerlink Timeout")
+    def reset_watchdog_timeout(self):
+        global WatchDogTimeout
+        # log.debug("[WatchDogTimeout] Resetting Powerlink Timeout")
         try:
-            self.tPowerLinkKeepAlive.cancel()
+            self.tWatchDogKeepAlive.cancel()
         except:
             pass
-        self.tPowerLinkKeepAlive = threading.Timer(PowerLinkTimeout, self.PowerLinkTimeoutExpired)
-        self.tPowerLinkKeepAlive.start()
+        self.tWatchDogKeepAlive = threading.Timer(WatchDogTimeout, self.WatchDogTimeoutExpired)
+        self.tWatchDogKeepAlive.start()
 
     # Function to send I'm Alive and status request messages to the panel
     def keep_alive_messages_timer(self):
@@ -591,7 +599,9 @@ class ProtocolBase(asyncio.Protocol):
             self.keepalivecounter = 0
             # Send I'm Alive and request status
             self.SendCommand("MSG_ALIVE")
-            self.SendCommand("MSG_STATUS")
+            # When is standard mode, sending this asks the panel to send us the status so we know that the panel is ok.
+            # When in powerlink mode, it makes no difference as we get the AB messages from the panel, but this also keeps our status updated
+            self.SendCommand("MSG_STATUS")  # Asks the panel to send us the A5 message set
         else:
             # Every 0.1 seconds, try to flush the send queue
             self.lock.release()
@@ -619,13 +629,13 @@ class ProtocolBase(asyncio.Protocol):
         
         # exit anything ongoing - this will also terminate any ongoing download from the panel
         self.SendCommand("MSG_EXIT")
-        # wait for 1 second
-        sleep(1.0)
+        self.SendCommand("MSG_EXIT")
         # Send an Initialise to the panel
+        self.SendCommand("MSG_INIT")
         self.SendCommand("MSG_INIT")
 
         # Define powerlink seconds timer and start it for PowerLink communication
-        self.reset_powerlink_timeout()
+        self.reset_watchdog_timeout()
 
         # Send the download command, this should initiate the communication
         # Only skip it, if we force standard mode
@@ -633,8 +643,10 @@ class ProtocolBase(asyncio.Protocol):
             log.debug("[connection_made] Sending Download Start")
             self.Start_Download()
         else:
+            self.SendCommand("MSG_STATUS")
+            #self.SendCommand("MSG_ZONETYPE")
+            self.SendCommand("MSG_ZONENAME")
             self.ProcessSettings()
-            # INTERFACE: set "PowerlinkMode" to "Standard" mode in HA interface
 
     # Process any received bytes (in data as a bytearray)            
     def data_received(self, data): 
@@ -711,7 +723,7 @@ class ProtocolBase(asyncio.Protocol):
                 self.pmLastPDU = self.ReceiveData
                 self.pmLogPdu(self.ReceiveData, "<-PM  ")
                 # Record the transaction time with the panel
-                pmLastTransactionTime = self.pmTimeFunction()  # get time now to track how long it takes for a reply
+                #pmLastTransactionTime = self.pmTimeFunction()  # get time now to track how long it takes for a reply
          
                 # Unknown Message has been received
                 if (self.msgType_t == None):
@@ -740,7 +752,7 @@ class ProtocolBase(asyncio.Protocol):
                 if len(self.ReceiveData) > 0xB0:
                     log.debug("[data receiver] PDU with CRC error %s", toString(self.ReceiveData))
                     self.pmLogPdu(self.ReceiveData, "<-PM   PDU with CRC error")
-                    pmLastTransactionTime = self.pmTimeFunction() - timedelta(seconds=1)
+                    #pmLastTransactionTime = self.pmTimeFunction() - timedelta(seconds=1)
                     self.ReceiveData = bytearray(b'')
                     if msgType != 0xF1:        # ignore CRC errors on F1 message
                         self.pmCrcErrorCount = self.pmCrcErrorCount + 1
@@ -885,12 +897,27 @@ class ProtocolBase(asyncio.Protocol):
             self.SendList.append(VisonicListEntry(command = message, options = options))
             #log.debug("[QueueMessage] Queueing %s" % (VisonicListEntry(command = message, options = options)))
         
-        # This will send commands from the list, oldest first        
-        if len(self.SendList) > 0:
+        # Both self.pmWaitingForAckFromPanel and self.pmExpectedResponse will prevent us sending another message to the panel
+        #   If the panel is lazy or we've got the timing wrong........
+        #   If there's a timeout then resend the previous message. If that doesn't work then do a reset using WatchDogTimeoutExpired function
+        if self.pmLastSentMessage != None and timeout and (self.pmWaitingForAckFromPanel or len(self.pmExpectedResponse) != 0):
+            if not self.triedResendingMessage:
+                # resend the last message
+                log.info("[SendCommand] Re-Sending last message  {0}".format(self.pmLastSentMessage.command.msg))
+                self.pmSendPdu(self.pmLastSentMessage)
+                self.pmLastTransactionTime = self.pmTimeFunction()
+                self.triedResendingMessage = True
+            else:
+                # tried resending once, no point in trying again so reset settings, start from scratch
+                log.info("[SendCommand] Tried Re-Sending last message but didn't work. Assume a powerlink timeout state and reset")
+                self.lock.release()
+                self.WatchDogTimeoutExpired() # this will call this function recursivelly to send the MSG_RESTORE.
+                return
+        elif len(self.SendList) > 0:    # This will send commands from the list, oldest first        
             #log.debug("[SendCommand] Start    interval {0}    timeout {1}     pmExpectedResponse {2}     pmWaitingForAckFromPanel {3}".format(interval, timeout, self.pmExpectedResponse, self.pmWaitingForAckFromPanel))
             if not self.pmWaitingForAckFromPanel and interval != None and len(self.pmExpectedResponse) == 0: # and not timeout: # we are ready to send    
                 # check if the last command was sent at least 500 ms ago
-                td = timedelta(milliseconds=500)
+                td = timedelta(milliseconds=1000)
                 ok_to_send = (interval > td) # pmMsgTiming_t[pmTiming].wait)
                 #log.debug("[SendCommand] ok_to_send {0}    {1}  {2}".format(ok_to_send, interval, td))
                 if ok_to_send: 
@@ -906,6 +933,7 @@ class ProtocolBase(asyncio.Protocol):
                         # This message has a specific response associated with it, add it to the list of responses if not already there
                         self.pmExpectedResponse.append(command.replytype)
                         log.debug("[SendCommand]      waiting for message response " + hex(command.replytype).upper())
+                    self.triedResendingMessage = False
                     self.pmSendPdu(instruction)
         self.lock.release()
                                                 
@@ -972,12 +1000,11 @@ class ProtocolBase(asyncio.Protocol):
         self.SendCommand("MSG_DL", options = [1, pmDownloadItem_t["MSG_DL_PANELFW"]] )     # Request the panel FW
         self.SendCommand("MSG_DL", options = [1, pmDownloadItem_t["MSG_DL_SERIAL"]] )      # Request serial & type (not always sent by default)
         self.SendCommand("MSG_DL", options = [1, pmDownloadItem_t["MSG_DL_ZONESTR"]] )     # Read the names of the zones
-        #self.SendCommand("MSG_DL", options = [1, pmDownloadItem_t["MSG_DL_ZONESIGNAL"]] )  # Read
+        #self.SendCommand("MSG_DL", options = [1, pmDownloadItem_t["MSG_DL_ZONESIGNAL"]] )  # Read Signal Strength of the wireless zones
         if self.pmPowerMaster:
             self.SendCommand("MSG_DL", options = [1, pmDownloadItem_t["MSG_DL_MR_SIRKEYZON"]] )
         self.SendCommand("MSG_START")      # Start sending all relevant settings please
         self.SendCommand("MSG_EXIT")       # Exit download mode
-        # set displayed state in HA to "POWERLINK"
 
 # This class performs transactions based on messages
 class PacketHandling(ProtocolBase):
@@ -1286,6 +1313,7 @@ class PacketHandling(ProtocolBase):
                 #zonesignalstrength = self.pmReadSettings(pmDownloadItem_t["MSG_DL_ZONESIGNAL"])
                 #log.debug("ZoneSignal " + toString(zonesignalstrength))
                 #log.debug("[Process Settings] DL Zone settings " + toString(setting))
+                #log.debug("[Process Settings] Zones Names Buffer :  {0}".format(toString(zoneNames)))
                 
                 if len(setting) > 0 and len(zoneNames) > 0:
                     log.debug("[Process Settings] Zones:    len settings {0}     len zoneNames {1}    zoneCnt {2}".format(len(setting), len(zoneNames), zoneCnt))
@@ -1333,9 +1361,20 @@ class PacketHandling(ProtocolBase):
                             log.debug("[Process Settings]      i={0} :    ZTypeName={1}   Chime={2}   SensorID={3}   sensorTypeStr=[{4}]  zoneName=[{5}]".format(
                                    i, pmZoneType_t[self.pmLang][zoneType], pmZoneChime_t[zoneChime], sensorID_c, sensorTypeStr, zoneName))
                             
-                            self.pmSensorDev_t[i] = SensorDevice(stype = sensorTypeStr, sid = sensorID_c, ztype = zoneType,
-                                         ztypeName = pmZoneType_t[self.pmLang][zoneType], zname = zoneName, zchime = pmZoneChime_t[zoneChime], 
-                                         dname="Z{0:0>2}".format(i+1), partition = part, id=i+1)
+                            if i in self.pmSensorDev_t:
+                                self.pmSensorDev_t[i].stype = sensorTypeStr
+                                self.pmSensorDev_t[i].sid = sensorID_c
+                                self.pmSensorDev_t[i].ztype = zoneType
+                                self.pmSensorDev_t[i].ztypeName = pmZoneType_t[self.pmLang][zoneType]
+                                self.pmSensorDev_t[i].zname = zoneName
+                                self.pmSensorDev_t[i].zchime = pmZoneChime_t[zoneChime]
+                                self.pmSensorDev_t[i].dname="Z{0:0>2}".format(i+1)
+                                self.pmSensorDev_t[i].partition = part
+                                self.pmSensorDev_t[i].id=i+1
+                            else:
+                                self.pmSensorDev_t[i] = SensorDevice(stype = sensorTypeStr, sid = sensorID_c, ztype = zoneType,
+                                             ztypeName = pmZoneType_t[self.pmLang][zoneType], zname = zoneName, zchime = pmZoneChime_t[zoneChime], 
+                                             dname="Z{0:0>2}".format(i+1), partition = part, id=i+1)
                             
                             if sensorTypeStr == "Magnet" or sensorTypeStr == "Wired" or sensorTypeStr == "Temperature":
                                 doorZoneStr = "{0},Z{1:0>2}".format(doorZoneStr, i+1)
@@ -1491,7 +1530,7 @@ class PacketHandling(ProtocolBase):
     def handle_packet(self, packet):
         """Handle one raw incoming packet."""
         global DownloadMode
-        #self.reset_powerlink_timeout()
+        #self.reset_watchdog_timeout()
         
         #log.debug("[handle_packet] Parsing complete valid packet: %s", toString(packet))
 
@@ -1515,8 +1554,12 @@ class PacketHandling(ProtocolBase):
             self.handle_msgtype3F(packet[2:-2])
         elif packet[1] == 0xa0: # Event log
             self.handle_msgtypeA0(packet[2:-2])
+        elif packet[1] == 0xa3: # Event log
+            self.handle_msgtypeA3(packet[2:-2])
         elif packet[1] == 0xa5: # General Event
             self.handle_msgtypeA5(packet[2:-2])
+        elif packet[1] == 0xa6: # General Event
+            self.handle_msgtypeA6(packet[2:-2])
         elif packet[1] == 0xa7: # General Event
             self.handle_msgtypeA7(packet[2:-2])
         elif packet[1] == 0xab and not self.ForceStandardMode: # PowerLink Event. Only process AB if not forced standard
@@ -1567,6 +1610,8 @@ class PacketHandling(ProtocolBase):
         """ Handle STOP from the panel """
         log.debug("[handle_msgtype0B] Stop")
         # This is the message to tell us that the panel has finished download mode, so we too should stop download mode
+        self.pmExpectedResponse = []
+        self.pmWaitingForAckFromPanel = False
         DownloadMode = False
         if self.pmLastSentMessage != None:
             lastCommandData = self.pmLastSentMessage.command.data
@@ -1576,7 +1621,7 @@ class PacketHandling(ProtocolBase):
                     log.debug("[handle_msgtype0B] We're in powerlink mode *****************************************")
                     self.pmPowerlinkMode = True  # INTERFACE set State to "PowerLink"
                     # We received a download exit message, restart timer
-                    self.reset_powerlink_timeout()
+                    self.reset_watchdog_timeout()
                     self.ProcessSettings()
 
     def handle_msgtype25(self, data): # Download retry
@@ -1716,6 +1761,44 @@ class PacketHandling(ProtocolBase):
             self.pmEventLogDictionary.items = idx
             self.pmEventLogDictionary.done = (eventNum == self.eventCount)
                 
+    def handle_msgtypeA3(self, data):
+        """ MsgType=A3 - Zone Names """
+        log.debug("[handle_MsgTypeA3] Packet = {0}".format(toString(data)))
+        if not self.pmPowerlinkMode:
+            msgCnt = int(data[0])
+            offset = 8 * (int(data[1]) - 1)
+            for i in range (0, 8):
+                zoneName = pmZoneName_t[int(data[2+i])]
+                #log.debug("Zone name for {0} is {1}".format( offset+i+1, zoneName ))
+                if offset+i in self.pmSensorDev_t:
+                    if not self.pmSensorDev_t[offset+i].zname:     # if not already set
+                        self.pmSensorDev_t[offset+i].zname = zoneName
+        
+    def handle_msgtypeA6(self, data):
+        """ MsgType=A6 - Zone Types I think """
+        log.debug("[handle_MsgTypeA6] Packet = {0}".format(toString(data)))
+        # Commented Out
+        #   I assumed that the 5 A6 messages were similar to the 5 A3 messages, giving the type and chime info (as per the EPROM download)
+        #      It doesn't look like it so it's commented out until I can figure out what they are
+        #     Example data streams from my alarm, 5 data packets (header, mgstype, checksum and footer removed)
+        #              04 01 2a 2a 2a 25 25 25 25 25 43     # This is supposed to tell us the total message count i.e. 4
+        #              04 01 2a 2a 2a 25 25 25 25 25 43     # Then this is message 1 of 4
+        #              04 02 25 25 24 24 25 25 24 25 43     # Then this is message 2 of 4
+        #              04 03 25 25 25 29 29 1f 1f 27 43     # Then this is message 3 of 4
+        #              04 04 27 28 28 1e 22 28 00 00 43     # Then this is message 4 of 4
+        #if not self.pmPowerlinkMode:
+        #    msgCnt = int(data[0])
+        #    offset = 8 * (int(data[1]) - 1)
+        #    for i in range (0, 8):
+        #        zoneInfo = int(data[2+i])
+        #        zoneType = (zoneInfo & 0x0F)
+        #        zoneChime = ((zoneInfo >> 4) & 0x03)
+        #        log.debug("Zone type for {0} is {1}   chime {2}".format( offset+i+1, pmZoneType_t[self.pmLang][zoneType], pmZoneChime_t[zoneChime]))
+        #        if offset+i in self.pmSensorDev_t:
+        #            self.pmSensorDev_t[offset+i].ztype = zoneType
+        #            self.pmSensorDev_t[offset+i].ztypeName = pmZoneType_t[self.pmLang][zoneType]
+        #            self.pmSensorDev_t[offset+i].zchime = pmZoneChime_t[zoneChime]
+        
 #    def displaySensorBypass(self, sensor):
 #        armed = False
 #        if self.pmSensorShowBypass:
@@ -1738,17 +1821,23 @@ class PacketHandling(ProtocolBase):
             val = val + (0x1000000 * data[3])
             return int(val)
         return 0
+    
     # captured examples of A5 data
     #     0d a5 00 04 00 61 03 05 00 05 00 00 43 a4 0a
     def handle_msgtypeA5(self, data): # Status Message
         log.debug("[handle_msgtypeA5] Parsing A5 packet")
-        
+
         msgTot = data[0]
         eventType = data[1]
         
         if eventType == 0x01: # Log event print
             log.debug("[handle_msgtypeA5] Log Event Print")
         elif eventType == 0x02: # Status message zones
+            # if in standard mode then use this A5 status message to reset the watchdog timer        
+            if not self.pmPowerlinkMode:
+                log.debug("Got A5 02 message, resetting watchdog")
+                self.reset_watchdog_timeout()
+
             val = self.makeInt(data[2:6])
             log.debug("[handle_msgtypeA5] Status Zones 32-01: {:032b}".format(val))
             for i in range(0, 32):
@@ -1863,9 +1952,17 @@ class PacketHandling(ProtocolBase):
             val = self.makeInt(data[2:6])
             log.debug("[handle_msgtypeA5]      Enrolled Zones 32-01: {:032b}".format(val))
             for i in range(0, 32):
-                if i in self.pmSensorDev_t:
-                    #log.debug("Set Enrolling {0}   {1}   {2}    {3}".format(i, hex(val), hex(1 << i), val & (1 << i)))
-                    self.pmSensorDev_t[i].enrolled = (val & (1 << i) != 0)
+                # if the sensor is enrolled
+                if val & (1 << i) != 0:
+                    # do we already know about the sensor from the EPROM decode
+                    if i in self.pmSensorDev_t:
+                        self.pmSensorDev_t[i].enrolled = True
+                    else:
+                        # we dont know about it so create it and make it enrolled
+                        self.pmSensorDev_t[i] = SensorDevice(dname="Z{0:0>2}".format(i+1), id=i+1, enrolled = True)
+                elif i in self.pmSensorDev_t:
+                    # it is not enrolled and we already know about it from the EPROM, set enrolled to False
+                    self.pmSensorDev_t[i].enrolled = False
 
             val = self.makeInt(data[6:10])
             log.debug("[handle_msgtypeA5]      Bypassed Zones 32-01: {:032b}".format(val))
@@ -1873,6 +1970,8 @@ class PacketHandling(ProtocolBase):
                 if i in self.pmSensorDev_t:
                     self.pmSensorDev_t[i].bypass = (val & (1 << i) != 0)
 
+            self.DumpSensorsToDisplay()
+            
         else:
             log.debug("[handle_msgtypeA5]      Unknown A5 Event: %s", hex(eventType))
 
@@ -1923,20 +2022,20 @@ class PacketHandling(ProtocolBase):
     # pmHandlePowerlink (0xAB)
     def handle_msgtypeAB(self, data): # PowerLink Message
         """ MsgType=AB - Panel Powerlink Messages """
-        log.debug("[handle_msgtypeAB]")
         global DownloadMode
+        log.debug("[handle_msgtypeAB]")
         # Restart the timer
-        self.reset_powerlink_timeout()
+        self.reset_watchdog_timeout()
 
         subType = self.ReceiveData[2]
         if subType == 3: # keepalive message
             # Example 0D AB 03 00 1E 00 31 2E 31 35 00 00 43 2A 0A
             log.debug("[handle_msgtypeAB] PowerLink Keep-Alive")
             # cycle through the sensors and set the triggered value back to False after the timeout duration
-            for key, value in self.pmSensorDev_t.items():
+            for key in self.pmSensorDev_t:
                 if self.pmSensorDev_t[key].triggered:
                     interval = self.pmTimeFunction() - self.pmSensorDev_t[key].triggertime
-                    td = timedelta(seconds=30)  # at least 30 seconds as it also depends on the frequency the panel sends this "I'm Alive" message
+                    td = timedelta(seconds=self.MotionOffDelay)  # at least self.MotionOffDelay seconds as it also depends on the frequency the panel sends this "I'm Alive" message
                     if interval > td:
                         self.pmSensorDev_t[key].triggered = False
                         self.pmSensorDev_t[key].triggertime = None
