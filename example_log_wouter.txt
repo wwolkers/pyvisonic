@@ -1,0 +1,410 @@
+wouter@raspberrypi:~/work/pyvisonic $ python3 test.py 
+0:00:00.004242 <  577>    DEBUG   Initialising Protocol
+DEBUG:asyncio:Using selector: EpollSelector
+0:00:00.013229 < 2379>  WARNING   Setting key OverrideCode to value -1
+0:00:00.014256 < 2379>  WARNING   Setting key PluginDebug to value True
+0:00:00.015086 < 2384>     INFO   Setting Logger Debug to True
+0:00:00.015903 < 2379>  WARNING   Setting key ForceStandard to value False
+0:00:00.021865 <  665>     INFO   [Connection] Connected. Please wait up to 5 minutes for Sensors and X10 Devices to Appear
+0:00:00.023190 <  941>    DEBUG   [QueueMessage] Exit
+0:00:00.025836 <  919>    DEBUG   [pmSendPdu] Sending Command (Exit)    raw data 0d 0f f0 0a 
+0:00:00.277395 <  922>    DEBUG   [pmSendPdu]      waiting for message response []
+0:00:00.278669 <  941>    DEBUG   [QueueMessage] Initializing PowerMax/Master PowerLink Connection
+0:00:00.280523 < 1006>    DEBUG   [Start_Download] Starting download mode
+0:00:00.281696 <  941>    DEBUG   [QueueMessage] Start Download Mode
+0:00:00.534781 < 1918>    DEBUG   [handle_msgtypeA5] Parsing A5 packet 0x4
+0:00:00.535922 < 1965>    DEBUG   [handle_msgtypeA5]      Zone Event sysStatus 0x0   sysFlags 0x21   eventZone 2   eventType 5   x10status 0x0
+0:00:00.536873 < 1969>    DEBUG   [handle_msgtypeA5]      Event Violated (Motion) in zone 2
+0:00:00.537967 < 1996>    DEBUG   [handle_msgtypeA5]      log: Disarmed, arm: Disarmed
+0:00:00.538776 < 2012>    DEBUG   [handle_msgtypeA5]      Bit 0 set, Ready
+0:00:00.539549 < 2023>    DEBUG   [handle_msgtypeA5]      Bit 5 set, Zone Event
+0:00:00.540302 < 2024>    DEBUG   [handle_msgtypeA5]            Zone: 2, Violated (Motion)
+0:00:01.038432 <  919>    DEBUG   [pmSendPdu] Sending Command (Initializing PowerMax/Master PowerLink Connection)    raw data 0d ab 0a 00 01 00 00 00 00 00 00 00 43 06 0a 
+0:00:01.291759 <  922>    DEBUG   [pmSendPdu]      waiting for message response []
+0:00:02.111063 <  919>    DEBUG   [pmSendPdu] Sending Command (Start Download Mode)    raw data 0d 24 00 00 56 50 00 00 00 00 00 00 35 0a 
+0:00:02.363296 <  922>    DEBUG   [pmSendPdu]      waiting for message response []
+0:00:02.411875 < 1683>    DEBUG   [handle_msgtype08] Access Denied
+0:00:02.413900 < 1686>    DEBUG   [handle_msgtype08]                last command 24 00 00 56 50 00 00 00 00 00 00 
+0:00:02.667422 < 2120>    DEBUG   [handle_msgtypeAB]
+0:00:02.670615 < 2157>    DEBUG   [handle_msgtypeAB] PowerLink most likely wants to auto-enroll, only doing auto enroll once
+0:00:02.672004 < 1054>    DEBUG   [SendMsg_ENROLL]  download pin will be 56 50 
+0:00:02.673355 <  984>    DEBUG   [ClearList] Setting queue empty
+0:00:03.675745 <  941>    DEBUG   [QueueMessage] Auto-Enroll of the PowerMax/Master
+0:00:03.679593 <  919>    DEBUG   [pmSendPdu] Sending Command (Auto-Enroll of the PowerMax/Master)    raw data 0d ab 0a 00 00 56 50 00 00 00 00 00 43 60 0a 
+0:00:03.931597 <  922>    DEBUG   [pmSendPdu]      waiting for message response ['0XAB']
+0:00:03.933137 < 1006>    DEBUG   [Start_Download] Starting download mode
+0:00:03.934653 <  941>    DEBUG   [QueueMessage] Start Download Mode
+0:00:03.935981 <  787>    DEBUG   [data receiver] msgType 0XAB got it so removed from list, list is now []
+0:00:04.189548 < 2120>    DEBUG   [handle_msgtypeAB]
+0:00:04.192802 < 2127>    DEBUG   [handle_msgtypeAB] Got PowerLink Keep-Alive ************************************
+0:00:04.444826 < 2132>    DEBUG   [handle_msgtypeAB]         Got alive message while not in Powerlink mode; starting download
+0:00:04.446529 <  941>    DEBUG   [QueueMessage] Restore PowerMax/Master Connection
+0:00:04.697989 <  919>    DEBUG   [pmSendPdu] Sending Command (Start Download Mode)    raw data 0d 24 00 00 56 50 00 00 00 00 00 00 35 0a 
+0:00:04.951268 <  922>    DEBUG   [pmSendPdu]      waiting for message response []
+0:00:04.999847 < 1037>    DEBUG   [Enrolling Powerlink] Reading panel settings
+0:00:05.001549 <  941>    DEBUG   [QueueMessage] Download Data Set
+0:00:05.003255 <  941>    DEBUG   [QueueMessage] Download Data Set
+0:00:05.004737 <  941>    DEBUG   [QueueMessage] Download Data Set
+0:00:05.006147 <  941>    DEBUG   [QueueMessage] Start
+0:00:05.007500 <  941>    DEBUG   [QueueMessage] Exit
+0:00:05.009123 <  941>    DEBUG   [QueueMessage] Setting Time
+0:00:05.262172 < 2169>    DEBUG   [handle_msgtypeAB] Received PowerMaster message 3/57 (len = 6)
+0:00:05.768464 <  919>    DEBUG   [pmSendPdu] Sending Command (Restore PowerMax/Master Connection)    raw data 0d ab 06 00 00 00 00 00 00 00 00 00 43 0b 0a 
+0:00:06.020603 <  922>    DEBUG   [pmSendPdu]      waiting for message response ['0XA5']
+0:00:06.070676 < 1918>    DEBUG   [handle_msgtypeA5] Parsing A5 packet 0x1
+0:00:06.072084 < 1921>    DEBUG   [handle_msgtypeA5] Log Event Print
+0:00:06.073555 <  787>    DEBUG   [data receiver] msgType 0XA5 got it so removed from list, list is now []
+0:00:06.326602 < 1918>    DEBUG   [handle_msgtypeA5] Parsing A5 packet 0x2
+0:00:06.329799 < 1925>    DEBUG   Got A5 02 message, resetting watchdog
+0:00:06.333929 < 1929>    DEBUG   [handle_msgtypeA5]      Open Door/Window Status Zones 32-01: 00000000000000000000000000000000
+0:00:06.336099 < 1935>    DEBUG   [handle_msgtypeA5]      Battery Low Zones 32-01: 00000000000000000000000000000000
+0:00:06.589732 < 1918>    DEBUG   [handle_msgtypeA5] Parsing A5 packet 0x3
+0:00:06.592022 < 1942>    DEBUG   [handle_msgtypeA5]      Trigger Status Zones 32-01: 00000000000000000000000000000000
+0:00:06.594018 < 1950>    DEBUG   [handle_msgtypeA5]      Tamper Zones 32-01: 00000000000000000000000000000000
+0:00:06.837954 <  919>    DEBUG   [pmSendPdu] Sending Command (Download Data Set)    raw data 0d 3e 00 04 20 00 b0 00 00 00 00 00 ec 0a 
+0:00:06.847629 < 1918>    DEBUG   [handle_msgtypeA5] Parsing A5 packet 0x4
+0:00:06.849633 < 1965>    DEBUG   [handle_msgtypeA5]      Zone Event sysStatus 0x7   sysFlags 0x41   eventZone 0   eventType 0   x10status 0x0
+0:00:06.851548 < 1996>    DEBUG   [handle_msgtypeA5]      log: Downloading, arm: Disarmed
+0:00:06.853388 < 2012>    DEBUG   [handle_msgtypeA5]      Bit 0 set, Ready
+0:00:06.855252 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0X3F']   got 0XA5
+0:00:07.090379 <  922>    DEBUG   [pmSendPdu]      waiting for message response ['0X3F']
+0:00:07.108715 < 1918>    DEBUG   [handle_msgtypeA5] Parsing A5 packet 0x5
+0:00:07.110381 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0X3F']   got 0XA5
+0:00:07.364155 < 1793>    DEBUG   [handle_msgtype3F]
+0:00:07.367060 <  787>    DEBUG   [data receiver] msgType 0X3F got it so removed from list, list is now []
+0:00:07.619300 < 1918>    DEBUG   [handle_msgtypeA5] Parsing A5 packet 0x6
+0:00:07.622001 < 2040>    DEBUG   [handle_msgtypeA5]      Enrolled Zones 32-01: 00000000000000000000000000000111
+0:00:07.627477 < 2062>    DEBUG   [handle_msgtypeA5]      Bypassed Zones 32-01: 00000000000000000000000000000000
+0:00:07.632476 < 2203>     INFO   Checking for changes to the sensors  0 1 2
+0:00:07.633946 < 2204>     INFO   Dumping sensors to display:
+0:00:07.635667 < 2206>     INFO     key 0  Sensor id=1  dname=Z01  stype=None zname=None ztypeName=None bypass=0  lowbatt=None status=None tamper=None enrolled=1  triggered=0 
+0:00:07.637193 < 2206>     INFO     key 1  Sensor id=2  dname=Z02  stype=None zname=None ztypeName=None bypass=0  lowbatt=None status=None tamper=None enrolled=1  triggered=0 
+0:00:07.638644 < 2206>     INFO     key 2  Sensor id=3  dname=Z03  stype=None zname=None ztypeName=None bypass=0  lowbatt=None status=None tamper=None enrolled=1  triggered=0 
+0:00:07.891969 < 1918>    DEBUG   [handle_msgtypeA5] Parsing A5 packet 0x7
+0:00:07.906605 <  919>    DEBUG   [pmSendPdu] Sending Command (Download Data Set)    raw data 0d 3e 30 04 08 00 b0 00 00 00 00 00 d4 0a 
+0:00:08.145196 < 1918>    DEBUG   [handle_msgtypeA5] Parsing A5 packet 0x8
+0:00:08.146973 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0X3F']   got 0XA5
+0:00:08.158569 <  922>    DEBUG   [pmSendPdu]      waiting for message response ['0X3F']
+0:00:08.400578 < 1918>    DEBUG   [handle_msgtypeA5] Parsing A5 packet 0x9
+0:00:08.402874 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0X3F']   got 0XA5
+0:00:08.655947 < 1918>    DEBUG   [handle_msgtypeA5] Parsing A5 packet 0xa
+0:00:08.657883 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0X3F']   got 0XA5
+0:00:08.911158 < 1793>    DEBUG   [handle_msgtype3F]
+0:00:08.913291 <  787>    DEBUG   [data receiver] msgType 0X3F got it so removed from list, list is now []
+0:00:08.973909 <  919>    DEBUG   [pmSendPdu] Sending Command (Download Data Set)    raw data 0d 3e 00 19 00 02 b0 00 00 00 00 00 f5 0a 
+0:00:09.167160 < 1918>    DEBUG   [handle_msgtypeA5] Parsing A5 packet 0xb
+0:00:09.169819 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0X3F']   got 0XA5
+0:00:09.225961 <  922>    DEBUG   [pmSendPdu]      waiting for message response ['0X3F']
+0:00:09.423473 < 1918>    DEBUG   [handle_msgtypeA5] Parsing A5 packet 0xc
+0:00:09.425348 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0X3F']   got 0XA5
+0:00:09.678094 < 1918>    DEBUG   [handle_msgtypeA5] Parsing A5 packet 0xd
+0:00:09.679783 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0X3F']   got 0XA5
+0:00:09.932926 < 1918>    DEBUG   [handle_msgtypeA5] Parsing A5 packet 0xe
+0:00:09.935634 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0X3F']   got 0XA5
+0:00:10.195261 < 1793>    DEBUG   [handle_msgtype3F]
+0:00:10.199537 <  787>    DEBUG   [data receiver] msgType 0X3F got it so removed from list, list is now []
+0:00:10.249522 <  919>    DEBUG   [pmSendPdu] Sending Command (Start)    raw data 0d 0a f5 0a 
+0:00:10.456850 < 1793>    DEBUG   [handle_msgtype3F]
+0:00:10.461091 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X3F
+0:00:10.501552 <  922>    DEBUG   [pmSendPdu]      waiting for message response ['0XB']
+0:00:10.718112 < 1793>    DEBUG   [handle_msgtype3F]
+0:00:10.720909 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X3F
+0:00:10.975775 < 1918>    DEBUG   [handle_msgtypeA5] Parsing A5 packet 0xf
+0:00:10.978494 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0XA5
+0:00:11.231916 < 1918>    DEBUG   [handle_msgtypeA5] Parsing A5 packet 0x10
+0:00:11.234756 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0XA5
+0:00:11.490609 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:11.745625 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:12.001934 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:12.256561 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:12.511275 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:12.765822 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:13.020891 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:13.275379 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:13.529736 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:13.784188 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:14.039227 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:14.293720 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:14.548071 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:14.802740 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:15.057684 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:15.311874 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:15.566625 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:15.820874 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:16.076086 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:16.330415 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:16.584865 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:16.839165 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:17.094247 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:17.348597 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:17.603042 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:17.857448 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:18.112821 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:18.367831 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:18.623117 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:18.877494 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:19.132408 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:19.388292 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:19.642724 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:19.897349 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:20.153736 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:20.407974 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:20.662324 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:20.916771 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:21.172588 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:21.426973 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:21.681260 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:21.934788 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:22.189024 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:22.442913 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:22.696462 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:22.949392 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:23.202676 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:23.455816 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:23.709299 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:23.962777 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:24.217112 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:24.470639 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:24.724423 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:24.977869 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:25.232095 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:25.485904 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:25.739281 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:25.993047 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:26.247053 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:26.500658 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:26.754571 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:27.008049 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:27.262232 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:27.516092 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:27.769597 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:28.023130 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:28.278663 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:28.537729 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:28.791345 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:29.044886 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:29.299130 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:29.552691 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:29.806345 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:30.060019 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:30.314435 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:30.568031 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:30.821467 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:31.075185 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:31.329360 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:31.583120 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:31.836677 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:32.090264 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:32.344613 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:32.598357 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:32.852129 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:33.105690 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:33.359834 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:33.613851 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:33.867467 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:34.120991 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:34.375101 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:34.628526 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:34.881883 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:35.135324 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:35.389456 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:35.642928 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:35.897817 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:36.151298 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:36.405510 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:36.658880 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:36.912285 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:37.165813 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:37.420243 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:37.673725 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:37.927123 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:38.180491 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:38.434634 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:38.687984 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:38.946088 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:39.199937 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:39.454124 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:39.707483 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:39.961131 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:40.214704 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:40.468894 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:40.722331 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:40.975841 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:41.229796 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:41.483980 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:41.737536 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:41.991163 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:42.245105 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:42.499472 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:42.753501 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:43.007117 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:43.260755 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:43.514955 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:43.768535 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:44.023642 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:44.277286 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:44.531710 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:44.785446 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:45.038896 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:45.292758 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:45.547029 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:45.800505 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:46.054230 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:46.307796 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:46.562119 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:46.815725 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:47.069357 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:47.323073 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:47.577222 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:47.830747 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:48.084392 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:48.337903 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:48.592235 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:48.845858 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:49.099455 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:49.353897 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:49.608221 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:49.861695 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:50.115254 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:50.368927 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:50.623265 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:50.876941 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:51.130402 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:51.384003 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:51.638452 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:51.892137 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:52.147243 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:52.401047 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:52.655643 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:52.909614 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:53.163280 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:53.416787 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:53.671630 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:53.925503 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:54.179021 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:54.432427 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:54.686698 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:54.940322 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:55.193981 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:55.447436 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:55.701608 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:55.955395 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:56.209228 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:56.462864 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:56.717078 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:56.970557 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:57.224313 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:57.478088 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:57.732641 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:57.986127 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:58.239648 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:58.493933 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:58.748145 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:59.001704 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:59.255552 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:59.509234 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:00:59.763506 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:01:00.023112 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:01:00.276601 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:01:00.530090 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:01:00.784353 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:01:01.038013 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:01:01.291588 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:01:01.545219 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:01:01.800896 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:01:02.054710 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:01:02.308490 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:01:02.563573 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:01:02.818245 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:01:03.071902 <  790>    DEBUG   [data receiver] msgType not in self.pmExpectedResponse   Waiting for next PDU :  expected ['0XB']   got 0X33
+0:01:03.325119 < 1697>    DEBUG   [handle_msgtype0B] Stop
+0:01:03.327204 < 1704>    DEBUG   [handle_msgtype0B]                last command 0a 
+0:01:03.328793 < 1707>    DEBUG   [handle_msgtype0B] We're in powerlink mode *****************************************
+0:01:03.331836 < 1223>     INFO   [Process Settings] Process Settings from EPROM
+0:01:03.333827 < 1185>    DEBUG   Dumping EPROM Settings
+0:01:03.335375 < 1276>    DEBUG   [Process Settings] Processing settings information
+0:01:03.336881 < 1282>    DEBUG   [Process Settings] Zone Type Names
+0:01:03.338317 < 1288>    DEBUG   [Process Settings]     Zone Type Names   0  name Attic   downloaded name (Loft)
+0:01:03.339656 < 1288>    DEBUG   [Process Settings]     Zone Type Names   1  name Back door   downloaded name (Back door)
+0:01:03.341029 < 1288>    DEBUG   [Process Settings]     Zone Type Names   2  name Basement   downloaded name (Cellar)
+0:01:03.342693 < 1288>    DEBUG   [Process Settings]     Zone Type Names   3  name Bathroom   downloaded name (Bathroom)
+0:01:03.344087 < 1288>    DEBUG   [Process Settings]     Zone Type Names   4  name Bedroom   downloaded name (Bedroom)
+0:01:03.345404 < 1288>    DEBUG   [Process Settings]     Zone Type Names   5  name Child room   downloaded name (Child room)
+0:01:03.346667 < 1288>    DEBUG   [Process Settings]     Zone Type Names   6  name Conservatory   downloaded name (Conservatory)
+0:01:03.347908 < 1288>    DEBUG   [Process Settings]     Zone Type Names   7  name Play room   downloaded name (Play room)
+0:01:03.349647 < 1288>    DEBUG   [Process Settings]     Zone Type Names   8  name Dining room   downloaded name (Dining room)
+0:01:03.351141 < 1288>    DEBUG   [Process Settings]     Zone Type Names   9  name Downstairs   downloaded name (Downstairs)
+0:01:03.352458 < 1288>    DEBUG   [Process Settings]     Zone Type Names   10  name Emergency   downloaded name (Emergency)
+0:01:03.353916 < 1288>    DEBUG   [Process Settings]     Zone Type Names   11  name Fire   downloaded name (Fire)
+0:01:03.355180 < 1288>    DEBUG   [Process Settings]     Zone Type Names   12  name Front door   downloaded name (Front door)
+0:01:03.356426 < 1288>    DEBUG   [Process Settings]     Zone Type Names   13  name Garage   downloaded name (Garage)
+0:01:03.357649 < 1288>    DEBUG   [Process Settings]     Zone Type Names   14  name Garage door   downloaded name (Garage door)
+0:01:03.358909 < 1288>    DEBUG   [Process Settings]     Zone Type Names   15  name Guest room   downloaded name (Office)
+0:01:03.360169 < 1288>    DEBUG   [Process Settings]     Zone Type Names   16  name Hall   downloaded name (Hall)
+0:01:03.361485 < 1288>    DEBUG   [Process Settings]     Zone Type Names   17  name Kitchen   downloaded name (Kitchen)
+0:01:03.362793 < 1288>    DEBUG   [Process Settings]     Zone Type Names   18  name Laundry room   downloaded name (Laundry room)
+0:01:03.364067 < 1288>    DEBUG   [Process Settings]     Zone Type Names   19  name Living room   downloaded name (Living room)
+0:01:03.365699 < 1288>    DEBUG   [Process Settings]     Zone Type Names   20  name Master bathroom   downloaded name (Master bath)
+0:01:03.367282 < 1288>    DEBUG   [Process Settings]     Zone Type Names   21  name Master bedroom   downloaded name (Master Bdrm)
+0:01:03.368843 < 1288>    DEBUG   [Process Settings]     Zone Type Names   22  name Office   downloaded name (Study)
+0:01:03.370130 < 1288>    DEBUG   [Process Settings]     Zone Type Names   23  name Upstairs   downloaded name (Upstairs)
+0:01:03.371389 < 1288>    DEBUG   [Process Settings]     Zone Type Names   24  name Utility room   downloaded name (Utility room)
+0:01:03.372747 < 1288>    DEBUG   [Process Settings]     Zone Type Names   25  name Yard   downloaded name (Garden)
+0:01:03.374402 < 1288>    DEBUG   [Process Settings]     Zone Type Names   26  name Custom 1   downloaded name (Custom 1)
+0:01:03.375777 < 1288>    DEBUG   [Process Settings]     Zone Type Names   27  name Custom 2   downloaded name (Custom 2)
+0:01:03.377113 < 1288>    DEBUG   [Process Settings]     Zone Type Names   28  name Custom 3   downloaded name (Custom 3)
+0:01:03.378368 < 1288>    DEBUG   [Process Settings]     Zone Type Names   29  name Custom4   downloaded name (Custom 4)
+0:01:03.379642 < 1288>    DEBUG   [Process Settings]     Zone Type Names   30  name Custom 5   downloaded name (Custom 5)
+0:01:03.380899 < 1294>    DEBUG   [Process Settings] Phone Numbers
+0:01:03.382690 < 1324>    DEBUG   [Process Settings] Alarm Settings pmBellTime 8 minutes     pmSilentPanic False   pmQuickArm True    pmBypassOff True  pmForcedDisarmCode bytearray(b'\x00\x00')
+0:01:03.392079 <  919>    DEBUG   [pmSendPdu] Sending Command (Exit)    raw data 0d 0f f0 0a 
+ERROR:asyncio:Exception in callback SerialTransport._read_ready()
+handle: <Handle SerialTransport._read_ready()>
+Traceback (most recent call last):
+  File "/usr/lib/python3.5/asyncio/events.py", line 126, in _run
+    self._callback(*self._args)
+  File "/usr/local/lib/python3.5/dist-packages/serial_asyncio/__init__.py", line 106, in _read_ready
+    self._protocol.data_received(data)
+  File "/home/wouter/work/pyvisonic/pyvisonic.py", line 698, in data_received
+    self.handle_received_byte(databyte)
+  File "/home/wouter/work/pyvisonic/pyvisonic.py", line 780, in handle_received_byte
+    self.handle_packet(self.ReceiveData)
+  File "/home/wouter/work/pyvisonic/pyvisonic.py", line 1629, in handle_packet
+    self.handle_msgtype0B(packet[2:-2])
+  File "/home/wouter/work/pyvisonic/pyvisonic.py", line 1711, in handle_msgtype0B
+    self.ProcessSettings()
+  File "/home/wouter/work/pyvisonic/pyvisonic.py", line 1336, in ProcessSettings
+    self.pmPincode_t[i] = code
+IndexError: list assignment index out of range
+0:01:03.423969 <  873>    DEBUG   [validatePDU] Not valid packet, CRC failed, may be ongoing and not final 0A
+0:01:03.426020 <  805>    DEBUG   [data receiver] Building PDU: Length is now 8 bytes (apparently PDU not complete)    0d 0b f4 0a 0d 02 fd 0a     checksum calcs e6
+0:01:03.439213 <  873>    DEBUG   [validatePDU] Not valid packet, CRC failed, may be ongoing and not final 0A
+0:01:03.441175 <  805>    DEBUG   [data receiver] Building PDU: Length is now 23 bytes (apparently PDU not complete)    0d 0b f4 0a 0d 02 fd 0a 0d a5 00 04 07 01 00 00 00 07 00 00 43 04 0a     checksum calcs d5
+0:01:03.648016 <  922>    DEBUG   [pmSendPdu]      waiting for message response []
+0:01:04.461846 <  919>    DEBUG   [pmSendPdu] Sending Command (Setting Time)    raw data 0d 46 f8 00 21 2d 00 1d 05 12 ff ff 3e 0a 
+0:01:04.561670 <  941>    DEBUG   [QueueMessage] I'm Alive Message To Panel
+0:01:04.563576 <  941>    DEBUG   [QueueMessage] Getting Status
+0:01:04.714583 <  922>    DEBUG   [pmSendPdu]      waiting for message response []
+0:01:05.531506 <  919>    DEBUG   [pmSendPdu] Sending Command (I'm Alive Message To Panel)    raw data 0d ab 03 00 00 00 00 00 00 00 00 00 43 0e 0a 
+0:01:05.564733 <  873>    DEBUG   [validatePDU] Not valid packet, CRC failed, may be ongoing and not final 0A
+0:01:05.567592 <  805>    DEBUG   [data receiver] Building PDU: Length is now 28 bytes (apparently PDU not complete)    0d 0b f4 0a 0d 02 fd 0a 0d a5 00 04 07 01 00 00 00 07 00 00 43 04 0a 0d 02 43 ba 0a     checksum calcs 75
+0:01:05.581228 <  873>    DEBUG   [validatePDU] Not valid packet, CRC failed, may be ongoing and not final 0A
+0:01:05.584221 <  805>    DEBUG   [data receiver] Building PDU: Length is now 42 bytes (apparently PDU not complete)    0d 0b f4 0a 0d 02 fd 0a 0d a5 00 04 07 01 00 00 00 07 00 00 43 04 0a 0d 02 43 ba 0a 0d b0 03 39 06 ff 08 ff 01 24 61 43 3b 0a     checksum calcs de
+0:01:05.783765 <  922>    DEBUG   [pmSendPdu]      waiting for message response []
+0:01:06.599178 <  919>    DEBUG   [pmSendPdu] Sending Command (Getting Status)    raw data 0d a2 00 00 00 00 00 00 00 00 00 00 43 1a 0a 
+0:01:06.635599 <  873>    DEBUG   [validatePDU] Not valid packet, CRC failed, may be ongoing and not final 0A
+0:01:06.637720 <  805>    DEBUG   [data receiver] Building PDU: Length is now 47 bytes (apparently PDU not complete)    0d 0b f4 0a 0d 02 fd 0a 0d a5 00 04 07 01 00 00 00 07 00 00 43 04 0a 0d 02 43 ba 0a 0d b0 03 39 06 ff 08 ff 01 24 61 43 3b 0a 0d 02 43 ba 0a     checksum calcs 47
+0:01:06.652074 <  873>    DEBUG   [validatePDU] Not valid packet, CRC failed, may be ongoing and not final 0A
+0:01:06.655127 <  805>    DEBUG   [data receiver] Building PDU: Length is now 62 bytes (apparently PDU not complete)    0d 0b f4 0a 0d 02 fd 0a 0d a5 00 04 07 01 00 00 00 07 00 00 43 04 0a 0d 02 43 ba 0a 0d b0 03 39 06 ff 08 ff 01 24 61 43 3b 0a 0d 02 43 ba 0a 0d a5 10 01 00 00 00 00 00 00 00 00 43 06 0a     checksum calcs 7b
+0:01:06.851299 <  922>    DEBUG   [pmSendPdu]      waiting for message response ['0XA5']
+0:01:21.642996 <  873>    DEBUG   [validatePDU] Not valid packet, CRC failed, may be ongoing and not final 0A
+0:01:21.646466 <  805>    DEBUG   [data receiver] Building PDU: Length is now 77 bytes (apparently PDU not complete)    0d 0b f4 0a 0d 02 fd 0a 0d a5 00 04 07 01 00 00 00 07 00 00 43 04 0a 0d 02 43 ba 0a 0d b0 03 39 06 ff 08 ff 01 24 61 43 3b 0a 0d 02 43 ba 0a 0d a5 10 01 00 00 00 00 00 00 00 00 43 06 0a 0d a5 10 01 00 00 00 00 00 00 00 00 43 06 0a     checksum calcs 64
+0:01:25.009898 <  941>    DEBUG   [QueueMessage] I'm Alive Message To Panel
+0:01:25.013354 <  941>    DEBUG   [QueueMessage] Getting Status
+0:01:36.647697 <  873>    DEBUG   [validatePDU] Not valid packet, CRC failed, may be ongoing and not final 0A
+0:01:36.658271 <  805>    DEBUG   [data receiver] Building PDU: Length is now 92 bytes (apparently PDU not complete)    0d 0b f4 0a 0d 02 fd 0a 0d a5 00 04 07 01 00 00 00 07 00 00 43 04 0a 0d 02 43 ba 0a 0d b0 03 39 06 ff 08 ff 01 24 61 43 3b 0a 0d 02 43 ba 0a 0d a5 10 01 00 00 00 00 00 00 00 00 43 06 0a 0d a5 10 01 00 00 00 00 00 00 00 00 43 06 0a 0d a5 10 01 00 00 00 00 00 00 00 00 43 06 0a     checksum calcs 4d
+0:01:51.643795 <  873>    DEBUG   [validatePDU] Not valid packet, CRC failed, may be ongoing and not final 0A
+0:01:51.647910 <  805>    DEBUG   [data receiver] Building PDU: Length is now 107 bytes (apparently PDU not complete)    0d 0b f4 0a 0d 02 fd 0a 0d a5 00 04 07 01 00 00 00 07 00 00 43 04 0a 0d 02 43 ba 0a 0d b0 03 39 06 ff 08 ff 01 24 61 43 3b 0a 0d 02 43 ba 0a 0d a5 10 01 00 00 00 00 00 00 00 00 43 06 0a 0d a5 10 01 00 00 00 00 00 00 00 00 43 06 0a 0d a5 10 01 00 00 00 00 00 00 00 00 43 06 0a 0d a5 10 01 00 00 00 00 00 00 00 00 43 06 0a     checksum calcs 36
+0:02:06.648555 <  873>    DEBUG   [validatePDU] Not valid packet, CRC failed, may be ongoing and not final 0A
+0:02:06.653044 <  805>    DEBUG   [data receiver] Building PDU: Length is now 122 bytes (apparently PDU not complete)    0d 0b f4 0a 0d 02 fd 0a 0d a5 00 04 07 01 00 00 00 07 00 00 43 04 0a 0d 02 43 ba 0a 0d b0 03 39 06 ff 08 ff 01 24 61 43 3b 0a 0d 02 43 ba 0a 0d a5 10 01 00 00 00 00 00 00 00 00 43 06 0a 0d a5 10 01 00 00 00 00 00 00 00 00 43 06 0a 0d a5 10 01 00 00 00 00 00 00 00 00 43 06 0a 0d a5 10 01 00 00 00 00 00 00 00 00 43 06 0a 0d a5 10 01 00 00 00 00 00 00 00 00 43 06 0a     checksum calcs 1f
+
