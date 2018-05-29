@@ -34,6 +34,8 @@ from typing import Callable, List
 from serial_asyncio import create_serial_connection
 from collections import namedtuple
 
+HOMEASSISTANT = False
+
 PLUGIN_VERSION = "0.0.1"
 
 MAX_CRC_ERROR = 5
@@ -445,18 +447,21 @@ class ElapsedFormatter():
         elapsed = timedelta(seconds = elapsed_seconds)
         return "{} <{: >5}> {: >8}   {}".format(elapsed, record.lineno, record.levelname, record.getMessage())
 
-#add custom formatter to root logger
-formatter = ElapsedFormatter()
-shandler = logging.StreamHandler(stream=sys.stdout)
-shandler.setFormatter(formatter)
-fhandler = logging.FileHandler('log.txt', mode='w')
-fhandler.setFormatter(formatter)
 
 log = logging.getLogger(__name__)
-log.propagate = False
 
-log.addHandler(fhandler)
-log.addHandler(shandler)
+if not HOMEASSISTANT:
+    #add custom formatter to root logger
+    formatter = ElapsedFormatter()
+    shandler = logging.StreamHandler(stream=sys.stdout)
+    shandler.setFormatter(formatter)
+    fhandler = logging.FileHandler('log.txt', mode='w')
+    fhandler.setFormatter(formatter)
+
+    log.propagate = False
+
+    log.addHandler(fhandler)
+    log.addHandler(shandler)
 
 level = logging.getLevelName('INFO')
 if PanelSettings["PluginDebug"]:
@@ -1716,26 +1721,11 @@ class PacketHandling(ProtocolBase):
         Unit is not ready to enter download mode
         """
         # Format: <MsgType> <?> <?> <delay in sec>
-            
         iDelay = data[2]
-
         log.debug("[handle_msgtype25] Download Retry, have to wait {0} seconds".format(iDelay))
-                
-        # Restart the List timer
-        try:
-            self.tListDelay.cancel()
-        except:
-            pass
-        self.tListDelay = threading.Timer(iDelay, self.tListDelayExpired)
-        self.tListDelay.start()
-        
-    def tListDelayExpired(self):
-        """ Timer expired, start processing the List (can restart the timer) """
-        try:
-            self.tListDelay.cancel()
-        except:
-            pass
-        # Timer expired, kick off the processing of the List
+        self.loop.call_later(iDelay, self.download_retry)
+
+    async def download_retry(self):
         self.ClearList()
         self.Start_Download()
                       
