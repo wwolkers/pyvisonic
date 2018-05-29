@@ -136,14 +136,14 @@ pmSendMsg = {
    "MSG_ACK"         : VisonicCommand(bytearray.fromhex('02')                                 , None  , False, "Ack" ),
    "MSG_ACKLONG"     : VisonicCommand(bytearray.fromhex('02 43')                              , None  , False, "Ack Long" ),
    # PowerMaster specific
-   "MSG_POWERMASTER" : VisonicCommand(bytearray.fromhex('B0 01 99 99 43')                     , [0xB0], False, "Powermaster Command" )
+   "MSG_POWERMASTER" : VisonicCommand(bytearray.fromhex('B0 01 00 00 00 00 00 00 00 00 43')   , [0xB0], False, "Powermaster Command" )
 }
 
 pmSendMsgB0_t = {
    "ZONE_STAT1" : bytearray.fromhex('04 06 02 FF 08 03 00 00'),
-   "ZONE_STAT2" : bytearray.fromhex('07 06 02 FF 08 03 00 00'),
-   "ZONE_NAME"  : bytearray.fromhex('21 02 05 00'),
-   "ZONE_TYPE"  : bytearray.fromhex('2D 02 05 00')
+   "ZONE_STAT2" : bytearray.fromhex('07 06 02 FF 08 03 00 00')
+   #"ZONE_NAME"  : bytearray.fromhex('21 02 05 00'),   # not used in Vera Lua Script
+   #"ZONE_TYPE"  : bytearray.fromhex('2D 02 05 00')    # not used in Vera Lua Script
 }
 
 # To use the following, use  "MSG_DL" above and replace bytes 1 to 4 with the following
