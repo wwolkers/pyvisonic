@@ -556,7 +556,7 @@ class ProtocolBase(asyncio.Protocol):
     # The CRC Error Count for Received Messages
     pmCrcErrorCount = 0
     # Whether its a powermax or powermaster
-    pmPowerMaster = False
+    PowerMaster = False
     # the current receiving message type
     msgType_t = None
     # The last sent message
@@ -1040,7 +1040,7 @@ class ProtocolBase(asyncio.Protocol):
         self.SendCommand("MSG_DL", options = [1, pmDownloadItem_t["MSG_DL_SERIAL"]] )      # Request serial & type (not always sent by default)
         self.SendCommand("MSG_DL", options = [1, pmDownloadItem_t["MSG_DL_ZONESTR"]] )     # Read the names of the zones
         #self.SendCommand("MSG_DL", options = [1, pmDownloadItem_t["MSG_DL_ZONESIGNAL"]] )  # Read Signal Strength of the wireless zones
-        if self.pmPowerMaster:
+        if self.PowerMaster:
             self.SendCommand("MSG_DL", options = [1, pmDownloadItem_t["MSG_DL_MR_SIRKEYZON"]] )
         self.SendCommand("MSG_START")      # Start sending all relevant settings please
         self.SendCommand("MSG_EXIT")       # Exit download mode
@@ -1093,7 +1093,7 @@ class PacketHandling(ProtocolBase):
         self.pmPhoneNr_t = {}
         self.pmEventLogDictionary = {}
         # We do not put these pin codes in to the panel status
-        self.pmPincode_t = [ bytearray.fromhex("00 00") ] * 32  # allow maximum of 32 user pin codes
+        self.pmPincode_t = [ bytearray.fromhex("00 00") ] * 48  # allow maximum of 48 user pin codes
         
         # Store the sensor details
         self.pmSensorDev_t = {}
@@ -1324,7 +1324,7 @@ class PacketHandling(ProtocolBase):
                 log.debug("[Process Settings] Alarm Settings pmBellTime {0} minutes     pmSilentPanic {1}   pmQuickArm {2}    pmBypassOff {3}  pmForcedDisarmCode {4}".format(self.pmBellTime, self.pmSilentPanic, self.pmQuickArm, self.pmBypassOff, self.pmForcedDisarmCode))
 
                 # Process user pin codes
-                if self.pmPowerMaster:
+                if self.PowerMaster:
                     setting = self.pmReadSettings(pmDownloadItem_t["MSG_DL_MR_PINCODES"])
                 else:
                     setting = self.pmReadSettings(pmDownloadItem_t["MSG_DL_PINCODES"])
@@ -1373,7 +1373,7 @@ class PacketHandling(ProtocolBase):
                 # Process zone settings
                 zoneNames = bytearray()
                 settingMr = bytearray()
-                if not self.pmPowerMaster:
+                if not self.PowerMaster:
                     zoneNames = self.pmReadSettings(pmDownloadItem_t["MSG_DL_ZONENAMES"])
                 else: # PowerMaster models
                     zoneNames = self.pmReadSettings(pmDownloadItem_t["MSG_DL_MR_ZONENAMES"])
@@ -1391,7 +1391,7 @@ class PacketHandling(ProtocolBase):
                         # data in the setting bytearray is in blocks of 4
                         zoneName = pmZoneName_t[zoneNames[i]]
                         zoneEnrolled = False
-                        if not self.pmPowerMaster: # PowerMax models
+                        if not self.PowerMaster: # PowerMax models
                             zoneEnrolled = setting[i * 4 : i * 4 + 3] != bytearray.fromhex("00 00 00")
                             #log.debug("      Zone Slice is " + toString(setting[i * 4 : i * 4 + 4]))
                         else: # PowerMaster models (check only 5 of 10 bytes)
@@ -1401,7 +1401,7 @@ class PacketHandling(ProtocolBase):
                             sensorID_c = 0
                             sensorTypeStr = ""
                             
-                            if not self.pmPowerMaster: #  PowerMax models
+                            if not self.PowerMaster: #  PowerMax models
                                 zoneInfo = int(setting[i * 4 + 3])            # extract the zoneType and zoneChime settings
                                 sensorID_c = int(setting[i * 4 + 2])          # extract the sensorType 
                                 tmpid = sensorID_c & 0x0F
@@ -1478,7 +1478,7 @@ class PacketHandling(ProtocolBase):
                         else:
                             deviceStr = "{0},X{1:0>2}".format(deviceStr, i)
 
-                if not self.pmPowerMaster:
+                if not self.PowerMaster:
                     # Process keypad settings
                     setting = self.pmReadSettings(pmDownloadItem_t["MSG_DL_1WKEYPAD"])
                     for i in range(0, keypad1wCnt):
