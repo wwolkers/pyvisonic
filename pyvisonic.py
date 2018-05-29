@@ -15,11 +15,11 @@
 import struct
 import re
 import asyncio
-import concurrent
+#import concurrent
 import logging
 import sys
 import pkg_resources
-import threading
+#import threading
 import collections
 import time
 import copy
@@ -37,12 +37,19 @@ from collections import namedtuple
 PLUGIN_VERSION = "0.0.1"
 
 MAX_CRC_ERROR = 5
-RESEND_MESSAGE_TIMEOUT = timedelta(seconds=80)
-WATCHDOG_TIMEOUT = 100
 
-# This is new, When we send a download command, wait this seconds for an 0x3C reply. We must get a 0x3C reply from the panel when we trigger download
-#  Must be less than RESEND_MESSAGE_TIMEOUT
-#DOWNLOAD_TIMEOUT = timedelta(seconds=10)
+# If we are waiting on a message back from the panel or we are explicitly waiting for an acknowledge,
+#    then wait this time before resending the message.
+#  Note that not all messages will get a resend, only ones waiting for a specific response and/or are blocking on an ack
+RESEND_MESSAGE_TIMEOUT = timedelta(seconds=10)
+
+# We must get specific messages from the panel, if we do not in this time period then trigger a restore/status request
+WATCHDOG_TIMEOUT = 90
+
+# When we send a download command wait for DownloadMode to become false.
+#   If this timesout then I'm not sure what to do, we really need to just start again
+#     In Vera, if we timeout we just assume we're in Standard mode by default
+DOWNLOAD_TIMEOUT = 120
 
 MasterCode = bytearray.fromhex('56 50')
 DisarmArmCode = bytearray.fromhex('56 50')
@@ -63,6 +70,8 @@ PanelSettings = {
 
 PanelStatus = {
    "PluginVersion"      : PLUGIN_VERSION,
+   "CommExceptionCount" : 0,
+   "Mode"               : "Unknown",
    
 # A7 message decode
    "PanelLastEvent"     : "None",
@@ -77,17 +86,13 @@ PanelStatus = {
    "PanelAlertInMemory" : False,
    "PanelTrouble"       : False,     
    "PanelBypass"        : False,
-   "PanelArmed"         : "Unknown",
    "PanelStatusChanged" : False,
    "PanelAlarmEvent"    : False,
-   "PanelLastEvent"     : "Unknown",
    
 # from the EPROM download
    "Model"              : "Unknown",
    "ModelType"          : "Unknown",
    "PanelArmed"         : False,
-   "PanelStatusCode"    : 0,
-   "PanelStatus"        : "Unknown",
    "PowerMaster"        : False,
    "PanelSoftware"      : "Unknown",
    "PanelName"          : "Unknown",
@@ -97,13 +102,11 @@ PanelStatus = {
    "SmokeZones"         : "Unknown",
    "OtherZones"         : "Unknown",
    "Devices"            : "Unknown",
-   "Mode"               : "Unknown",
    "PhoneNumbers"       : {}, 
    "BellTime"           : 0, 
    "SilentPanic"        : False,
    "QuickArm"           : False,
-   "BypassOff"          : False,
-   "CommExceptionCount" : 0
+   "BypassOff"          : False
 }
 
 # use a named tuple for data and acknowledge
@@ -131,7 +134,7 @@ pmSendMsg = {
    "MSG_DL"          : VisonicCommand(bytearray.fromhex('3E 00 00 00 00 B0 00 00 00 00 00')   , [0x3F], False, "Download Data Set" ),
    "MSG_SER_TYPE"    : VisonicCommand(bytearray.fromhex('5A 30 04 01 00 00 00 00 00 00 00')   , [0x33], False, "Get Serial Type" ),
    # quick command codes to start and stop download/powerlink are a single value
-   "MSG_START"       : VisonicCommand(bytearray.fromhex('0A')                                 , [0x0B], False, "Start" ),    ## waiting for download complete from panel
+   "MSG_START"       : VisonicCommand(bytearray.fromhex('0A')                                 , [0x0B], False, "Start" ),    # waiting for download complete from panel
    "MSG_EXIT"        : VisonicCommand(bytearray.fromhex('0F')                                 , None  , False, "Exit" ),
    "MSG_ACK"         : VisonicCommand(bytearray.fromhex('02')                                 , None  , False, "Ack" ),
    "MSG_ACKLONG"     : VisonicCommand(bytearray.fromhex('02 43')                              , None  , False, "Ack Long" ),
@@ -460,8 +463,6 @@ if PanelSettings["PluginDebug"]:
     level = logging.getLevelName('DEBUG')  # INFO, DEBUG
 log.setLevel(level)
 
-DownloadMode = False
-
 def toString(array_alpha : bytearray):
     return "".join("%02x " % b for b in array_alpha)
     
@@ -568,6 +569,9 @@ class ProtocolBase(asyncio.Protocol):
     pmExpectedResponse = []
     # whether we are in powerlink state
     pmPowerlinkMode = False
+    # When we are downloading the EPROM settings and finished parsing them and setting up the system.
+    #   There should be no user (from Home Assistant for example) interaction when this is True
+    DownloadMode = False
 
     CommExceptionCount = 0
     
@@ -585,75 +589,78 @@ class ProtocolBase(asyncio.Protocol):
         self.disconnect_callback = disconnect_callback
         # A queue of messages to send
         self.SendList = []
-        # A thread lock so when we read info into the host, it isn't changed at the same time
-        ##self.lock = threading.Lock()
         # This is the time stamp of the last Send or Receive
-        self.pmLastTransactionTime = self.pmTimeFunction() - timedelta(seconds=1)  ## take off 1 second so the first command goes through immediately
+        self.pmLastTransactionTime = self.pmTimeFunction() - timedelta(seconds=1)  # take off 1 second so the first command goes through immediately
+        asyncio.ensure_future(self.keep_alive_messages_timer(), loop = self.loop)
+        asyncio.ensure_future(self.watchdog_timer(), loop = self.loop)
  
     # get the current date and time
     def pmTimeFunction(self) -> datetime:
         return datetime.now()
     
-    # This is a timeout function for a watchdog. If we are in powerlink, we should get a AB 03 message every 20 to 30 seconds
-    #    If we haven't got one in the timeout period then reset the send queues and state and then call a MSG_RESTORE
-    # In standard mode, this command asks the panel for a status
-    def WatchDogTimeoutExpired(self):
-        """We timed out, try to restore the connection."""
-        log.debug("[WatchDogTimeout] ****************************** WatchDog Timer Expired ********************************")
+    def triggerRestoreStatus(self):
         # Reset Send state (clear queue and reset flags)
         self.ClearList()
         #self.pmWaitingForAckFromPanel = False
         self.pmExpectedResponse = []    
-        # restart the timer
+        # restart the counter
         self.reset_watchdog_timeout()
         if self.pmPowerlinkMode:
             # Send RESTORE to the panel
             self.SendCommand("MSG_RESTORE") # also gives status
         else:
             self.SendCommand("MSG_STATUS")
-
+    
+    # This is a timeout function for a watchdog. If we are in powerlink, we should get a AB 03 message every 20 to 30 seconds
+    #    If we haven't got one in the timeout period then reset the send queues and state and then call a MSG_RESTORE
+    # In standard mode, this command asks the panel for a status
+    async def watchdog_timer(self):
+        """We timed out, try to restore the connection."""
+        self.reset_watchdog_timeout()
+        while True:
+            # Disable during download
+            if self.DownloadMode:
+                self.reset_watchdog_timeout()
+            self.watchdogcounter = self.watchdogcounter + 1
+            #log.debug("[WatchDogTimeout] is {0}".format(self.watchdogcounter))
+            if self.watchdogcounter >= WATCHDOG_TIMEOUT:   #  the clock runs at 1 second
+                log.debug("[WatchDogTimeout] ****************************** WatchDog Timer Expired ********************************")
+                self.triggerRestoreStatus()
+            # sleep, doesn't need to be highly accurate so just count each second
+            await asyncio.sleep(1.0)
+        
     # This function needs to be called within the timeout to reset the timer period
     def reset_watchdog_timeout(self):
-        global WATCHDOG_TIMEOUT
-        # log.debug("[WatchDogTimeout] Resetting Powerlink Timeout")
-        try:
-            self.tWatchDogKeepAlive.cancel()
-        except:
-            pass
-        self.tWatchDogKeepAlive = threading.Timer(WATCHDOG_TIMEOUT, self.WatchDogTimeoutExpired)
-        self.tWatchDogKeepAlive.start()
+        self.watchdogcounter = 0
 
     # Function to send I'm Alive and status request messages to the panel
-    def keep_alive_messages_timer(self):
-        global DownloadMode
-        ##self.lock.acquire()
-        self.keepalivecounter = self.keepalivecounter + 1
-        if not DownloadMode and len(self.SendList) == 0 and self.keepalivecounter >= 200:   #  the clock runs at 0.1 seconds   200 gives 20 seconds
-            # Every 200 counts (approx 20 seconds) 
-            #log.debug("Send list is empty so sending I'm alive message")
-            ##self.lock.release()
-            # reset counter
-            self.keepalivecounter = 0
-            # Send I'm Alive and request status
-            self.SendCommand("MSG_ALIVE")
-            # When is standard mode, sending this asks the panel to send us the status so we know that the panel is ok.
-            # When in powerlink mode, it makes no difference as we get the AB messages from the panel, but this also keeps our status updated
-            self.SendCommand("MSG_STATUS")  # Asks the panel to send us the A5 message set
-        else:
-            # Every 0.1 seconds, try to flush the send queue
-            ##self.lock.release()
-            self.SendCommand(None)  ## check send queue
-        # restart the timer
-        self.reset_keep_alive_messages()
+    async def keep_alive_messages_timer(self):
+        self.keepalivecounter = 0
+        while True:
+            # Disable during download
+            if self.DownloadMode:
+                self.keepalivecounter = 0
+            self.keepalivecounter = self.keepalivecounter + 1
+            #log.debug("[KeepaliveTimeout] is {0}   DownloadMode {1}".format(self.keepalivecounter, self.DownloadMode))
+            if len(self.SendList) == 0 and self.keepalivecounter >= 20:   #  
+                # Every 20 seconds, unless watchdog has been reset
+                #log.debug("Send list is empty so sending I'm alive message")
+                # reset counter
+                self.keepalivecounter = 0
+                # Send I'm Alive and request status
+                self.SendCommand("MSG_ALIVE")
+                # When is standard mode, sending this asks the panel to send us the status so we know that the panel is ok.
+                # When in powerlink mode, it makes no difference as we get the AB messages from the panel, but this also keeps our status updated
+                self.SendCommand("MSG_STATUS")  # Asks the panel to send us the A5 message set
+            else:
+                # Every 1.0 seconds, try to flush the send queue
+                self.SendCommand(None)  # check send queue
+            # sleep, doesn't need to be highly accurate so just count each second
+            await asyncio.sleep(1.0)
+            #self.reset_keep_alive_messages()
 
     def reset_keep_alive_messages(self):
-        try:
-            self.tKeepAlive.cancel()
-        except:
-            pass
-        # 0.1 seconds
-        self.tKeepAlive = threading.Timer(0.1, self.keep_alive_messages_timer)
-        self.tKeepAlive.start()
+        self.keepalivecounter = 0
 
     # This is called from the loop handler when the connection to the transport is made
     def connection_made(self, transport):
@@ -698,7 +705,6 @@ class ProtocolBase(asyncio.Protocol):
     #       pmIncomingPduLen is only used in this function
     def handle_received_byte(self, data):
         """Process a single byte as incoming data."""
-        #global DOWNLOAD_TIMEOUT
         # Length of the received data so far
         pduLen = len(self.ReceiveData)
 
@@ -776,7 +782,7 @@ class ProtocolBase(asyncio.Protocol):
                     #log.debug("[data receiver] Received message " + hex(msgType).upper())
                     self.handle_packet(self.ReceiveData)
                     # Check response
-                    if (len(self.pmExpectedResponse) > 0 and msgType != 2):   ## 2 is a simple acknowledge from the panel so ignore those
+                    if (len(self.pmExpectedResponse) > 0 and msgType != 2):   # 2 is a simple acknowledge from the panel so ignore those
                         # We've sent something and are waiting for a reponse - this is it
                         #log.debug("[data receiver] msgType {0}  expected one of {1}".format(hex(msgType).upper(), [hex(no).upper() for no in self.pmExpectedResponse]))
                         if (msgType in self.pmExpectedResponse):
@@ -837,7 +843,6 @@ class ProtocolBase(asyncio.Protocol):
         lastType = self.pmLastPDU[1]
         #normalMode = (lastType >= 0x80) or ((lastType < 0x10) and (self.pmLastPDU[len(self.pmLastPDU) - 2] == 0x43))
    
-        ##self.lock.acquire()
         #log.debug("[sending ack] Sending an ack back to Alarm powerlink = {0}".format(self.pmPowerlinkMode))
         # There are 2 types of acknowledge that we can send to the panel
         #    Normal    : For a normal message
@@ -850,7 +855,6 @@ class ProtocolBase(asyncio.Protocol):
             self.transport.write(bytearray.fromhex('0D 02 FD 0A'))
         #yield from asyncio.sleep(0.25)
         sleep(0.25)
-        ##self.lock.release()
     
     def validatePDU(self, packet : bytearray) -> bool:
         """Verify if packet is valid.
@@ -885,7 +889,6 @@ class ProtocolBase(asyncio.Protocol):
         #log.debug("[calculate_crc] Calculating for: %s     calculated CRC is: %s", toString(msg), toString(bytearray([checksum])))
         return bytearray([checksum])
 
-    ############# lock no longer used this does not have a lock as the lock is in SendCommand and this is only called from within that function
     def pmSendPdu(self, instruction : VisonicListEntry):
         """Encode and put packet string onto write buffer."""
      
@@ -925,7 +928,6 @@ class ProtocolBase(asyncio.Protocol):
     def SendCommand(self, message_type, **kwargs):
         """ Add a command to the send List 
             The List is needed to prevent sending messages too quickly normally it requires 500msec between messages """
-        ##self.lock.acquire()
         interval = self.pmTimeFunction() - self.pmLastTransactionTime
         timeout = (interval > RESEND_MESSAGE_TIMEOUT)
 
@@ -941,8 +943,9 @@ class ProtocolBase(asyncio.Protocol):
         
         # self.pmExpectedResponse will prevent us sending another message to the panel
         #   If the panel is lazy or we've got the timing wrong........
-        #   If there's a timeout then resend the previous message. If that doesn't work then do a reset using WatchDogTimeoutExpired function
-        if self.pmLastSentMessage != None and timeout and len(self.pmExpectedResponse) > 0:
+        #   If there's a timeout then resend the previous message. If that doesn't work then do a reset using triggerRestoreStatus function
+        #  Do not resend during download as the timing is critical anyway
+        if not self.DownloadMode and self.pmLastSentMessage != None and timeout and len(self.pmExpectedResponse) > 0:
             if not self.pmLastSentMessage.triedResendingMessage:
                 # resend the last message
                 log.info("[SendCommand] Re-Sending last message  {0}".format(self.pmLastSentMessage.command.msg))
@@ -952,12 +955,10 @@ class ProtocolBase(asyncio.Protocol):
             else:
                 # tried resending once, no point in trying again so reset settings, start from scratch
                 log.info("[SendCommand] Tried Re-Sending last message but didn't work. Assume a powerlink timeout state and reset")
-                ##self.lock.release()
-                self.WatchDogTimeoutExpired() # this will call this function recursivelly to send the MSG_RESTORE.
+                self.triggerRestoreStatus() # this will call this function recursivelly to send the MSG_RESTORE.
                 return
         elif len(self.SendList) > 0:    # This will send commands from the list, oldest first        
-            #log.debug("[SendCommand] Start    interval {0}    timeout {1}     pmExpectedResponse {2}     pmWaitingForAckFromPanel {3}".format(interval, timeout, self.pmExpectedResponse, self.pmWaitingForAckFromPanel))
-            if interval != None and len(self.pmExpectedResponse) == 0: # and not timeout: # we are ready to send    
+            if interval != None and len(self.pmExpectedResponse) == 0: # we are ready to send    
                 # check if the last command was sent at least 500 ms ago
                 td = timedelta(milliseconds=1000)
                 ok_to_send = (interval > td) # pmMsgTiming_t[pmTiming].wait)
@@ -967,23 +968,19 @@ class ProtocolBase(asyncio.Protocol):
                     instruction = self.SendList.pop(0)
                     # Do we have to receive an acknowledge from the panel before we sent more messages
                     #self.pmWaitingForAckFromPanel = instruction.command.waitforack
-                    self.reset_keep_alive_messages()   ## no need to send i'm alive message for a while as we're about to send a command anyway
+                    self.reset_keep_alive_messages()   # no need to send i'm alive message for a while as we're about to send a command anyway
                     self.pmLastTransactionTime = self.pmTimeFunction()
                     self.pmLastSentMessage = instruction       
                     self.pmExpectedResponse.extend(instruction.response) # if an ack is needed it will already be in this list
                     self.pmSendPdu(instruction)
-
-        ##self.lock.release()
                                                 
     # Clear the send queue and reset the associated parameters
     def ClearList(self):
         """ Clear the List, preventing any retry causing issue. """
-        ##self.lock.acquire()
         # Clear the List
         log.debug("[ClearList] Setting queue empty")
         self.SendList = []
         self.pmLastSentMessage = None
-        ##self.lock.release()
     
     # This is called by the parent when the connection is lost
     def connection_lost(self, exc):
@@ -995,23 +992,30 @@ class ProtocolBase(asyncio.Protocol):
         if self.disconnect_callback:
             self.disconnect_callback(exc)
 
+    async def download_timer(self):
+        # sleep for the duration that download is supposed to take
+        await asyncio.sleep(DOWNLOAD_TIMEOUT)
+        # if we're still doing download then do something
+        if self.DownloadMode:
+            log.warning("********************** Download Timer has Expired, Download has taken too long *********************")
+        
     # This puts the panel in to download mode. It is the start of determining powerlink access
     def Start_Download(self):
         """ Start download mode """
-        global DownloadMode
         PanelStatus["Mode"] = "Download"
-        if not DownloadMode:
+        if not self.DownloadMode:
             #self.pmWaitingForAckFromPanel = False
             self.pmExpectedResponse = []
             log.debug("[Start_Download] Starting download mode")
             self.SendCommand("MSG_DOWNLOAD", options = [3, DownloadCode]) # 
-            DownloadMode = True
+            self.DownloadMode = True
+            asyncio.ensure_future(self.download_timer(), loop = self.loop)
         else:
             log.debug("[Start_Download] Already in Download Mode (so not doing anything)")
             
     # pmHandleCommException: we have run into a communication error
     #   This currently doesn't do much as I assume a perfect connection.
-    #   It just resets various variables and sends an INIT to the panel to try and restore the connection
+    #   It just resets various variables and calls self.Initialise()
     def pmHandleCommException(self, what):
         """ Handle a Communication Exception, we've got out of sync """
         #outf = open(pmCrashFilename , 'a')
@@ -1026,8 +1030,8 @@ class ProtocolBase(asyncio.Protocol):
         log.warning("*** Houston - we have a communication problem (" + what + ")! Executing a reload. ***")
         self.pmExpectedResponse = []
         self.pmSendMsgRetries = 0
-        # initiate reload initialisation
-        self.SendCommand("MSG_INIT")
+        # initiate reload
+        self.Initialise()
 
     # pmPowerlinkEnrolled
     # Attempt to enroll with the panel in the same was as a powerlink module would inside the panel
@@ -1049,7 +1053,6 @@ class ProtocolBase(asyncio.Protocol):
     #   We need to clear the send queue ans reset the send parameters to immediately send an MSG_ENROLL
     def SendMsg_ENROLL(self):
         """ Auto enroll the PowerMax/Master unit """
-        global DownloadMode
         if not self.doneAutoEnroll:
             log.debug("[SendMsg_ENROLL]  download pin will be " + toString(DownloadCode))
             self.doneAutoEnroll = True
@@ -1059,16 +1062,14 @@ class ProtocolBase(asyncio.Protocol):
             self.ClearList()
             #yield from asyncio.sleep(1.0)
             sleep(1.0)
-            # Send the request, the pin will be added when the command is send
-            #self.SendCommand("MSG_RESTORE") #,  options = [4, DownloadCode])
             
             # The 3 and 4 ignore 0x0D header. Is this 3 or 4.  4 according to Lua plugin but 3 according to https://www.domoticaforum.eu/viewtopic.php?f=68&t=6581
             self.SendCommand("MSG_ENROLL",  options = [4, DownloadCode])
             
             # We are doing an auto-enrollment, most likely the download failed. Lets restart the download stage.
-            if DownloadMode:
+            if self.DownloadMode:
                 log.debug("[SendMsg_ENROLL] Resetting download mode to 'Off' in order to retrigger it")
-                DownloadMode = False
+                self.DownloadMode = False
             self.Start_Download()
         else:
             log.warning("Warning: Trying to re enroll and it is only allowed once at the start")
@@ -1605,9 +1606,6 @@ class PacketHandling(ProtocolBase):
             
     def handle_packet(self, packet):
         """Handle one raw incoming packet."""
-        global DownloadMode
-        #self.reset_watchdog_timeout()
-        
         # cycle through the sensors and set the triggered value back to False after the timeout duration
         for key in self.pmSensorDev_t:
             if self.pmSensorDev_t[key].triggered:
@@ -1672,10 +1670,9 @@ class PacketHandling(ProtocolBase):
     def handle_msgtype06(self, data): 
         """ MsgType=06 - Time out
         Timeout message from the PM, most likely we are/were in download mode """
-        global DownloadMode
         log.debug("[handle_msgtype06] Timeout Received")
-        if DownloadMode:
-            DownloadMode = False
+        if self.DownloadMode:
+            self.DownloadMode = False
             self.SendCommand("MSG_EXIT")
         else:
             self.pmSendAck()
@@ -1702,7 +1699,7 @@ class PacketHandling(ProtocolBase):
         # This is the message to tell us that the panel has finished download mode, so we too should stop download mode
         self.pmExpectedResponse = []
         #self.pmWaitingForAckFromPanel = False
-        DownloadMode = False
+        self.DownloadMode = False
         if self.pmLastSentMessage != None:
             lastCommandData = self.pmLastSentMessage.command.data
             log.debug("[handle_msgtype0B]                last command {0}".format(toString(lastCommandData)))
@@ -2120,7 +2117,6 @@ class PacketHandling(ProtocolBase):
     # pmHandlePowerlink (0xAB)
     def handle_msgtypeAB(self, data): # PowerLink Message
         """ MsgType=AB - Panel Powerlink Messages """
-        global DownloadMode
         log.debug("[handle_msgtypeAB]")
         # Restart the timer
         self.reset_watchdog_timeout()
@@ -2128,14 +2124,13 @@ class PacketHandling(ProtocolBase):
         subType = self.ReceiveData[2]
         if subType == 3: # keepalive message
             # Example 0D AB 03 00 1E 00 31 2E 31 35 00 00 43 2A 0A
-            log.debug("[handle_msgtypeAB] Got PowerLink Keep-Alive ************************************")
+            log.debug("[handle_msgtypeAB] ***************************** Got PowerLink Keep-Alive ****************************")
             # set downloading to False, if we are getting keep alive messages from the panel then we are not downloading
-            DownloadMode = False
+            self.DownloadMode = False
             self.pmSendAck()
             if self.pmPowerlinkMode == False:
-                log.debug("[handle_msgtypeAB]         Got alive message while not in Powerlink mode; starting download")
+                log.debug("[handle_msgtypeAB]         Got alive message while not in Powerlink mode, attempting restore")
                 self.SendCommand("MSG_RESTORE") # also gives status
-                #self.Start_Download()
             else:
                 self.DumpSensorsToDisplay()
         elif subType == 5: # -- phone message
@@ -2159,7 +2154,7 @@ class PacketHandling(ProtocolBase):
             #DownloadCode[1] = self.ReceiveData[6]
         elif (subType == 10 and self.ReceiveData[4] == 1 and not self.doneAutoEnroll):
             log.debug("[handle_msgtypeAB] PowerLink most likely wants to auto-enroll, only doing auto enroll once")
-            DownloadMode = False
+            self.DownloadMode = False
             self.SendMsg_ENROLL()
         else:
             self.pmSendAck()
@@ -2199,18 +2194,26 @@ class PacketHandling(ProtocolBase):
     #===================================================================================================================================================
     #===================================================================================================================================================
 
+    def toYesNo(self, b):
+        return "Yes" if b else "No"
+        
     def DumpSensorsToDisplay(self):
         changedSensors = self.GetSensorChanges()
         makeitastring = " ".join(str(x) for x in changedSensors)
         if len(makeitastring) == 0:
             makeitastring = "No Changes"
-        #log.info("****************************** Dumping Status *******************************")
+        log.info("=============================================== Display Status ===============================================")
         log.info("Checking for changes to the sensors  " + makeitastring)
-        log.info("Dumping sensors to display:")
+        log.info("Sensors:")
         for key, sensor in self.pmSensorDev_t.items():
-            log.info("  key {0:<2} Sensor {1}".format(key, sensor))
-        for key in PanelStatus:
-            log.info("Panel Status {0:22}  {1}".format(key, PanelStatus[key]))
+            log.info("     key {0:<2} Sensor {1}".format(key, sensor))
+        log.info("   Model {: <18}     PowerMaster {: <18}     LastEvent {: <18}     Ready   {: <13}".format(PanelStatus["Model"], 
+                                        self.toYesNo(PanelStatus["PowerMaster"]), PanelStatus["PanelLastEvent"], self.toYesNo(PanelStatus["PanelReady"])))
+        log.info("   Mode  {: <18}     Status      {: <18}     Armed     {: <18}     Trouble {: <13}     AlarmStatus {: <12}".format(PanelStatus["Mode"], PanelStatus["PanelStatus"], 
+                                        self.toYesNo(PanelStatus["PanelArmed"]), PanelStatus["PanelTroubleStatus"], PanelStatus["PanelAlarmStatus"]))
+        log.info("==============================================================================================================")
+        #for key in PanelStatus:
+        #    log.info("Panel Status {0:22}  {1}".format(key, PanelStatus[key]))
 
 class EventHandling(PacketHandling):
     """ Event Handling """
