@@ -532,9 +532,10 @@ class VisonicListEntry:
             self.response = []
         else:
             self.response = self.command.replytype  # list of message reply needed
-        #if self.command.waitforack:
-        #    self.response.append(0x02)            # add an achnowledge to the list
-        self.sendCounter = 0
+        # are we waiting for an acknowledge from the panel (do not send a message until we get it)
+        if self.command.waitforack:
+            self.response.append(0x02)              # add an acknowledge to the list
+        self.triedResendingMessage = False
         
     def __str__(self):
         return "Command:{0}    Options:{1}".format(self.command.msg, self.options)
@@ -567,11 +568,7 @@ class ProtocolBase(asyncio.Protocol):
     pmExpectedResponse = []
     # whether we are in powerlink state
     pmPowerlinkMode = False
-    # are we waiting for an acknowledge from the panel (do not send a message until we get it)
-    pmWaitingForAckFromPanel = False
 
-    triedResendingMessage = False
-    
     CommExceptionCount = 0
     
     log.debug("Initialising Protocol")
@@ -605,7 +602,7 @@ class ProtocolBase(asyncio.Protocol):
         log.debug("[WatchDogTimeout] ****************************** WatchDog Timer Expired ********************************")
         # Reset Send state (clear queue and reset flags)
         self.ClearList()
-        self.pmWaitingForAckFromPanel = False
+        #self.pmWaitingForAckFromPanel = False
         self.pmExpectedResponse = []    
         # restart the timer
         self.reset_watchdog_timeout()
@@ -851,6 +848,7 @@ class ProtocolBase(asyncio.Protocol):
         else:
             #self.SendCommand("MSG_ACK")
             self.transport.write(bytearray.fromhex('0D 02 FD 0A'))
+        #yield from asyncio.sleep(0.25)
         sleep(0.25)
         ##self.lock.release()
     
@@ -918,8 +916,9 @@ class ProtocolBase(asyncio.Protocol):
         # Log some usefull information in debug mode
         log.debug("[pmSendPdu] Sending Command ({0})    raw data {1}".format(command.msg, toString(sData)))
         self.transport.write(sData)
-        sleep(0.25)
         log.debug("[pmSendPdu]      waiting for message response {}".format([hex(no).upper() for no in self.pmExpectedResponse]))
+        #yield from asyncio.sleep(0.25)
+        sleep(0.25)
 
     # This is called to queue a command.
     # If it is possible, then also send the message
@@ -940,16 +939,16 @@ class ProtocolBase(asyncio.Protocol):
             self.SendList.append(e)
             log.debug("[QueueMessage] %s" % message.msg)
         
-        # Both self.pmWaitingForAckFromPanel and self.pmExpectedResponse will prevent us sending another message to the panel
+        # self.pmExpectedResponse will prevent us sending another message to the panel
         #   If the panel is lazy or we've got the timing wrong........
         #   If there's a timeout then resend the previous message. If that doesn't work then do a reset using WatchDogTimeoutExpired function
-        if self.pmLastSentMessage != None and timeout and (self.pmWaitingForAckFromPanel or len(self.pmExpectedResponse) != 0):
-            if not self.triedResendingMessage:
+        if self.pmLastSentMessage != None and timeout and len(self.pmExpectedResponse) > 0:
+            if not self.pmLastSentMessage.triedResendingMessage:
                 # resend the last message
                 log.info("[SendCommand] Re-Sending last message  {0}".format(self.pmLastSentMessage.command.msg))
                 self.pmSendPdu(self.pmLastSentMessage)
                 self.pmLastTransactionTime = self.pmTimeFunction()
-                self.triedResendingMessage = True
+                self.pmLastSentMessage.triedResendingMessage = True
             else:
                 # tried resending once, no point in trying again so reset settings, start from scratch
                 log.info("[SendCommand] Tried Re-Sending last message but didn't work. Assume a powerlink timeout state and reset")
@@ -958,7 +957,7 @@ class ProtocolBase(asyncio.Protocol):
                 return
         elif len(self.SendList) > 0:    # This will send commands from the list, oldest first        
             #log.debug("[SendCommand] Start    interval {0}    timeout {1}     pmExpectedResponse {2}     pmWaitingForAckFromPanel {3}".format(interval, timeout, self.pmExpectedResponse, self.pmWaitingForAckFromPanel))
-            if not self.pmWaitingForAckFromPanel and interval != None and len(self.pmExpectedResponse) == 0: # and not timeout: # we are ready to send    
+            if interval != None and len(self.pmExpectedResponse) == 0: # and not timeout: # we are ready to send    
                 # check if the last command was sent at least 500 ms ago
                 td = timedelta(milliseconds=1000)
                 ok_to_send = (interval > td) # pmMsgTiming_t[pmTiming].wait)
@@ -967,11 +966,11 @@ class ProtocolBase(asyncio.Protocol):
                     # pop the oldest item from the list, this could be the only item.
                     instruction = self.SendList.pop(0)
                     # Do we have to receive an acknowledge from the panel before we sent more messages
-                    self.pmWaitingForAckFromPanel = instruction.command.waitforack
+                    #self.pmWaitingForAckFromPanel = instruction.command.waitforack
                     self.reset_keep_alive_messages()   ## no need to send i'm alive message for a while as we're about to send a command anyway
                     self.pmLastTransactionTime = self.pmTimeFunction()
                     self.pmLastSentMessage = instruction       
-                    self.pmExpectedResponse.extend(instruction.response)
+                    self.pmExpectedResponse.extend(instruction.response) # if an ack is needed it will already be in this list
                     self.pmSendPdu(instruction)
 
         ##self.lock.release()
@@ -990,7 +989,7 @@ class ProtocolBase(asyncio.Protocol):
     def connection_lost(self, exc):
         """Log when connection is closed, if needed call callback."""
         if exc:
-            log.exception('ERROR Connection Lost : disconnected due to exception')
+            log.exception("ERROR Connection Lost : disconnected due to exception  <{0}>".format(exc))
         else:
             log.debug('ERROR Connection Lost : disconnected because of close/abort.')
         if self.disconnect_callback:
@@ -1002,7 +1001,8 @@ class ProtocolBase(asyncio.Protocol):
         global DownloadMode
         PanelStatus["Mode"] = "Download"
         if not DownloadMode:
-            self.pmWaitingForAckFromPanel = False
+            #self.pmWaitingForAckFromPanel = False
+            self.pmExpectedResponse = []
             log.debug("[Start_Download] Starting download mode")
             self.SendCommand("MSG_DOWNLOAD", options = [3, DownloadCode]) # 
             DownloadMode = True
@@ -1057,6 +1057,7 @@ class ProtocolBase(asyncio.Protocol):
             self.pmExpectedResponse = []
             # Clear the list
             self.ClearList()
+            #yield from asyncio.sleep(1.0)
             sleep(1.0)
             # Send the request, the pin will be added when the command is send
             #self.SendCommand("MSG_RESTORE") #,  options = [4, DownloadCode])
@@ -1321,7 +1322,8 @@ class PacketHandling(ProtocolBase):
                 PanelStatus["QuickArm"] = self.pmQuickArm
                 PanelStatus["BypassOff"] = self.pmBypassOff
                 
-                log.debug("[Process Settings] Alarm Settings pmBellTime {0} minutes     pmSilentPanic {1}   pmQuickArm {2}    pmBypassOff {3}  pmForcedDisarmCode {4}".format(self.pmBellTime, self.pmSilentPanic, self.pmQuickArm, self.pmBypassOff, self.pmForcedDisarmCode))
+                log.debug("[Process Settings] Alarm Settings pmBellTime {0} minutes     pmSilentPanic {1}   pmQuickArm {2}    pmBypassOff {3}  pmForcedDisarmCode {4}".format(self.pmBellTime, 
+                          self.pmSilentPanic, self.pmQuickArm, self.pmBypassOff, toString(self.pmForcedDisarmCode)))
 
                 # Process user pin codes
                 if self.PowerMaster:
@@ -1410,7 +1412,7 @@ class PacketHandling(ProtocolBase):
                                     sensorTypeStr = pmZoneSensor_t[tmpid]
                                     
                             else: # PowerMaster models
-                                zoneInfo = int(setting[i * 10])
+                                zoneInfo = int(setting[i])
                                 sensorID_c = int(settingMr[i * 10 + 5])
                                 sensorTypeStr = "UNKNOWN " + str(sensorID_c)
                                 if sensorID_c in pmZoneSensorMaster_t:
@@ -1663,7 +1665,9 @@ class PacketHandling(ProtocolBase):
         """ Handle Acknowledges from the panel """
         # Normal acknowledges have msgtype 0x02 but no data, when in powerlink the panel also sends data byte 0x43
         #    I have not found this on the internet, this is my hypothesis
-        self.pmWaitingForAckFromPanel = False
+        while 0x02 in self.pmExpectedResponse:
+            self.pmExpectedResponse.remove(0x02)
+        #self.pmWaitingForAckFromPanel = False
 
     def handle_msgtype06(self, data): 
         """ MsgType=06 - Time out
@@ -1697,7 +1701,7 @@ class PacketHandling(ProtocolBase):
         log.debug("[handle_msgtype0B] Stop")
         # This is the message to tell us that the panel has finished download mode, so we too should stop download mode
         self.pmExpectedResponse = []
-        self.pmWaitingForAckFromPanel = False
+        #self.pmWaitingForAckFromPanel = False
         DownloadMode = False
         if self.pmLastSentMessage != None:
             lastCommandData = self.pmLastSentMessage.command.data
@@ -2166,10 +2170,11 @@ class PacketHandling(ProtocolBase):
         msgType = data[0] # 00, 01, 04: req; 03: reply, so expecting 0x03
         subType = data[1]
         msgLen  = data[2]
-        log.debug("[handle_msgtypeAB] Received PowerMaster message {0}/{1} (len = {2})".format(msgType, subType, msgLen))
-        #if msgType == 0x03 and subType == 0x39:
-        #    pmSendCommand("MSG_POWERMASTER", { msg = pmSendMsgB0_t.ZONE_STAT1 })
-        #    pmSendCommand("MSG_POWERMASTER", { msg = pmSendMsgB0_t.ZONE_STAT2 })
+        log.debug("[handle_msgtypeB0] Received PowerMaster message {0}/{1} (len = {2})".format(msgType, subType, msgLen))
+        if msgType == 0x03 and subType == 0x39:
+            log.debug("[handle_msgtypeB0]      Sending special PowerMaster Commands to the panel")
+            self.SendCommand("MSG_POWERMASTER", options = [2, pmSendMsgB0_t["ZONE_STAT1"]])    #
+            self.SendCommand("MSG_POWERMASTER", options = [2, pmSendMsgB0_t["ZONE_STAT2"]])    #
                     
     # pmGetPin: Convert a PIN given as 4 digit string in the PIN PDU format as used in messages to powermax
     def pmGetPin(self, pin):
