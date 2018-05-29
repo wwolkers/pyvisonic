@@ -1416,7 +1416,7 @@ class PacketHandling(ProtocolBase):
                                 sensorID_c = int(settingMr[i * 10 + 5])
                                 sensorTypeStr = "UNKNOWN " + str(sensorID_c)
                                 if sensorID_c in pmZoneSensorMaster_t:
-                                    sensorTypeStr = pmZoneSensorMaster_t[sensorID_c]
+                                    sensorTypeStr = pmZoneSensorMaster_t[sensorID_c].func
                             
                             zoneType = (zoneInfo & 0x0F)
                             zoneChime = ((zoneInfo >> 4) & 0x03)
@@ -2209,8 +2209,8 @@ class PacketHandling(ProtocolBase):
         log.info("Dumping sensors to display:")
         for key, sensor in self.pmSensorDev_t.items():
             log.info("  key {0:<2} Sensor {1}".format(key, sensor))
-        #for key in PanelStatus:
-        #    log.info("Panel Status {0:22}  {1}".format(key, PanelStatus[key]))
+        for key in PanelStatus:
+            log.info("Panel Status {0:22}  {1}".format(key, PanelStatus[key]))
 
 class EventHandling(PacketHandling):
     """ Event Handling """
