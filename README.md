@@ -35,6 +35,15 @@ I am not releasing this code yet, but I will when it's more robust!
     
 ## What has changed since the last release
 
+4th June 2018 at 22:25
+1. Changes for better Home Assistant Integration including callback handler
+2. Reduce rate of MSG_STATUS to reduce communications with the panel (things like low battery etc)
+3. Better retry control
+     Powerlink - if panel requests autoenroll then it can achieve powerlink within 2 or 3 minutes
+               - if panel does not request auto enroll, we request "Restore" and this might get in to powerlink within about 10 to 15 minutes
+     Standard - The user can set ForceStandard to True
+              - If cannot achieve powerlink, the we go in to standard
+
 3rd June 2018 at 00:20
 1. Implemented ForceStandard and tested
     - In doing this, the code gets the zone names OK but when I tried getting zone types I'm not sure what it's sending me
