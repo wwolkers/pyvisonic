@@ -27,8 +27,7 @@ When I run it it usually connects in powerlink mode. If it doesn't and you want 
 - If that doesn't work then reset your panel (enter installer mode on the panel and "OK" back out)
 
 ### Running it in Home Assistant
-I have also developed the HA python code to create the sensors from a callback. 
-When I run it in Home Assistant and examine the HA log file, I keep getting "Access Denied" after each Enroll attempt. It then defaults to Standard Mode after 4 attempts.
+I upgraded my Home Assistant Docker on my NAS and when I run it in Home Assistant and examine the HA log file, I get it in to powerlink mode after about 12 minutes of "MSG_RESTORE"
 
 I am not releasing this code yet, but I will when it's more robust!
 
