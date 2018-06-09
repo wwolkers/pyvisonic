@@ -28,7 +28,7 @@ pyvisonic.setConfig("OverrideCode", -1)
 pyvisonic.setConfig("PluginDebug", True)
 pyvisonic.setConfig("ForceStandard", False)
 
-useTask = True
+useTask = False
 
 if useTask:
     pyvisonic.create_tcp_visonic_connection_task(
