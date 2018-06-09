@@ -13,7 +13,6 @@ It's easy to run.
 - For a USB (RS232) connection, edit test.py and 
     - Comment out the tcp connection and 
     - Uncomment the usb connection. 
-    - Also change useTask to False.
     - Change the usb port to your settings
 - From the command prompt run "python3 test.py" and hopefully watch it connect in powerlink! 
 
@@ -22,17 +21,30 @@ It tries to connect in Powerlink mode by default (unless you set ForceStandard t
 Set PluginDebug to True or False to output more or less text on your display window
 
 ### From the command prompt, linux terminal or from within PyCharm (on windows)
-When I run it it usually connects in powerlink mode. If it doesn't and you want it to then, in the following order:
-- Wait 5 minutes and try it again
+When I run it, it usually connects in powerlink mode. If it doesn't and you want it to then, in the following order:
+- Wait 5 minutes and try it again. The Alarm Panel sometimes self protects as I think it assumes it's being attacked. This may or may not be true, what I do know is that waiting 5 minutes helps!
 - If that doesn't work then reset your panel (enter installer mode on the panel and "OK" back out)
 
 ### Running it in Home Assistant
-I upgraded my Home Assistant Docker on my NAS and when I run it in Home Assistant and examine the HA log file, I get it in to powerlink mode after about 12 minutes of "MSG_RESTORE"
+I am currently testing the installation I have in Home Assistant over the next few days, if it goes OK then I'll upload my HA files.
+I currently connect to the panel in powerlink and it creates an HA:
+- Sensor for each alarm sensor.
+- Switch so I can look at the values, the switch doesn't do anything.
+- "alarm_control_panel" sensor so you can arm and disarm the alarm
 
-I am not releasing this code yet, but I will when it's more robust!
+### What it doesn't do in Home Assistant
+- Partitions, it assumes a single partition
+- What happens when the alarm is actually triggered
+- Ability to bypass individual sensors
+- Event Log. I can get the event log but I don't know what to do with it in HA
 
     
 ## What has changed since the last release
+
+9th June 2018 at 14:50
+1. Changes to program interface for integration in HA
+2. A couple of changes as I've come across bugs and things that didn't work quite right for HA
+
 
 4th June 2018 at 22:25
 1. Changes for better Home Assistant Integration including callback handler
@@ -42,6 +54,7 @@ I am not releasing this code yet, but I will when it's more robust!
                - if panel does not request auto enroll, we request "Restore" and this might get in to powerlink within about 10 to 15 minutes
      Standard - The user can set ForceStandard to True
               - If cannot achieve powerlink, the we go in to standard
+
 
 3rd June 2018 at 00:20
 1. Implemented ForceStandard and tested
